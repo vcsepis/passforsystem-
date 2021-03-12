@@ -6,7 +6,8 @@ import RepoList from "components/repo-selector/RepoList";
 import { ActionConfigType } from "shared/types";
 import { integrationList } from "shared/common";
 
-import CreateIntegrationForm from "./create-integration/CreateIntegrationForm";
+import GithubEditForm from "./edit-integration/GithubEditForm";
+import { EditIntegrationFormPropsType, EmptyForm } from "./edit-integration/EditIntegrationForm";
 
 type PropsType = {
   toggleCollapse: MouseEventHandler;
@@ -27,7 +28,9 @@ export default class IntegrationRow extends Component<PropsType, StateType> {
   };
 
   editButtonOnClick = (e: MouseEvent) => {
-    e.stopPropagation();
+    if (e) {
+      e.stopPropagation();
+    }
     if (!this.props.expanded) {
       this.setState({
         editMode: true
@@ -42,6 +45,14 @@ export default class IntegrationRow extends Component<PropsType, StateType> {
         this.props.toggleCollapse(null);
       }
     }
+  }
+
+  getEditForm = (props: EditIntegrationFormPropsType) => {
+    switch (this.props.integration) {
+      case "github":
+        return <GithubEditForm {...props} />;
+    }
+    return <EmptyForm {...props} />;
   }
 
   render = () => {
@@ -62,8 +73,8 @@ export default class IntegrationRow extends Component<PropsType, StateType> {
           </Description>
         </Flex>
         <MaterialIconTray disabled={false}>
-          {/* <i className="material-icons"
-            onClick={this.editButtonOnClick}>mode_edit</i> */}
+          <i className="material-icons"
+            onClick={this.editButtonOnClick}>mode_edit</i>
           <I
             className="material-icons"
             showList={this.props.expanded}
@@ -102,14 +113,11 @@ export default class IntegrationRow extends Component<PropsType, StateType> {
           )}
         </ImageHodler>
       )}
-      {
-        this.props.expanded && this.state.editMode && <CreateIntegrationForm
-          integrationName={this.props.integration}
-          closeForm={() => {
-            this.setState({ editMode: false });
-          }}
-        />
-      }
+      {this.props.expanded && this.state.editMode && this.getEditForm({
+        onCancel: () => { this.editButtonOnClick(null) }
+      })}
+
+
     </Integration>
   }
 
@@ -170,7 +178,7 @@ const MainRow = styled.div`
 `;
 
 const MaterialIconTray = styled.div`
-  width: 32px;
+  width: 64px;
   margin-right: -7px;
   display: flex;
   align-items: center;
