@@ -10,6 +10,7 @@ import (
 	"github.com/porter-dev/porter/api/server/shared/config"
 	"github.com/porter-dev/porter/api/types"
 	"github.com/porter-dev/porter/internal/models"
+	"helm.sh/helm/v3/pkg/chart"
 )
 
 type ListReleasesHandler struct {
@@ -47,12 +48,24 @@ func (c *ListReleasesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 
 	releases, err := helmAgent.ListReleases(namespace, request.ReleaseListFilter)
 
+	var optimizedReleaseList types.ListReleasesResponse
+
+	// Clean up unused properties, these values are unnecesary to display the frontend rn
+	for _, r := range releases {
+		r.Chart.Files = []*chart.File{}
+		r.Chart.Templates = []*chart.File{}
+		r.Manifest = ""
+		r.Chart.Values = nil
+		r.Info.Notes = ""
+		optimizedReleaseList = append(optimizedReleaseList, r)
+	}
+
 	if err != nil {
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
 		return
 	}
 
-	var res types.ListReleasesResponse = releases
+	var res types.ListReleasesResponse = optimizedReleaseList
 
 	c.WriteResult(w, r, res)
 }
