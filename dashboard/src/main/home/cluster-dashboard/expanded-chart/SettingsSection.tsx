@@ -296,10 +296,9 @@ const SettingsSection: React.FC<PropsType> = ({
           {/* Prevent the clone button to be rendered in github deployed charts */}
           {!chartWasDeployedWithGithub() && (
             <>
-              <Heading>Clone deployment</Heading>
+              <Heading>Clone Deployment</Heading>
               <Helper>
-                Click the button below to be redirected to the deploy form with
-                all the data prefilled
+                Create a new deployment with the current configuration prefilled.
               </Helper>
               <CloneButton as={Link} to={getCloneUrl()}>
                 Clone

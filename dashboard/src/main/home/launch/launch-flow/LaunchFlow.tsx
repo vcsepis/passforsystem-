@@ -405,7 +405,7 @@ const LaunchFlow: React.FC<PropsType> = (props) => {
           ? `New ${currentTemplateName} ${
               currentTab === "porter" ? null : "Instance"
             }`
-          : `Cloning ${currentTemplateName} deployment: ${props.clonedChart.name}`}
+          : `Cloning ${currentTemplateName}: ${props.clonedChart.name}`}
       </TitleSection>
       {renderCurrentPage()}
       <Br />
