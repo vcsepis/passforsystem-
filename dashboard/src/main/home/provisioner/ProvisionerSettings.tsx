@@ -53,7 +53,7 @@ const ProvisionerSettings: React.FC<Props> = ({
       return false;
     }
     return usage.current.clusters >= usage.limit.clusters;
-  }, [usage]);
+  }, [usage, hasBillingEnabled]);
 
   const handleSelectProvider = (newSelectedProvider: string) => {
     if (!isInNewProject) {
