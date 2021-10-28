@@ -499,20 +499,20 @@ const CostHighlight = styled.span<{ highlight: boolean }>`
   background-color: ${(props) => props.highlight && "yellow"};
 `;
 
-const StyledInfoTooltip = styled.div`
-  display: inline-block;
-  position: relative;
-  margin-right: 2px;
-  > i {
-    display: flex;
-    align-items: center;
-    position: absolute;
-    top: -10px;
-    font-size: 10px;
-    color: #858faaaa;
-    cursor: pointer;
-    :hover {
-      color: #aaaabb;
-    }
-  }
-`;
+// const StyledInfoTooltip = styled.div`
+//   display: inline-block;
+//   position: relative;
+//   margin-right: 2px;
+//   > i {
+//     display: flex;
+//     align-items: center;
+//     position: absolute;
+//     top: -10px;
+//     font-size: 10px;
+//     color: #858faaaa;
+//     cursor: pointer;
+//     :hover {
+//       color: #aaaabb;
+//     }
+//   }
+// `;
