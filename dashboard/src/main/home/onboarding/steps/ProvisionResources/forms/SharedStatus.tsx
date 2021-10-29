@@ -42,7 +42,7 @@ export const SharedStatus: React.FC<{
 
       // query for desired and current state, and convert to tf module
       matchedInfras.forEach((infra: any) => {
-        var module: TFModule = {
+        const module: TFModule = {
           id: infra.id,
           kind: infra.kind,
           status: infra.status,
@@ -72,19 +72,20 @@ export const SharedStatus: React.FC<{
     // recompute tf module state each time, to see if infra is ready
     if (tfModules.length > 0) {
       // see if all tf modules are in a "created" state
-      const hasAllModulesCreated = tfModules
-        .filter((m) => m)
-        .every((tfm) => tfm.status === "created");
+      const hasAllModulesCreated = tfModules.every(
+        (tfm) => tfm?.status === "created"
+      );
       if (hasAllModulesCreated) {
+        debugger;
         setInfraStatus({
           hasError: false,
         });
         return;
       }
 
-      const hasAllModulesOnError = tfModules
-        .filter((m) => m)
-        .every((tfm) => tfm.status === "error");
+      const hasAllModulesOnError = tfModules.every(
+        (tfm) => tfm?.status === "error"
+      );
       if (hasAllModulesOnError) {
         setInfraStatus({
           hasError: true,
@@ -97,8 +98,13 @@ export const SharedStatus: React.FC<{
       // must have more than one resource
       let numModulesSuccessful = 0;
       let numModulesErrored = 0;
-
-      for (let tfModule of tfModules.filter((m) => m)) {
+      //
+      /**
+       * Hay un punto en el que el numero de numModulesSuccessful sube hasta el mismo length de
+       * la cantidad de modulos registrados.
+       */
+      for (let tfModule of tfModules) {
+        debugger;
         if (tfModule.status == "created") {
           numModulesSuccessful += 1;
         } else if (tfModule.status == "error") {
@@ -106,7 +112,8 @@ export const SharedStatus: React.FC<{
         } else {
           const hasResources =
             Array.isArray(tfModule?.resources) && tfModule.resources.length;
-          if (hasResources) {
+          const hasFinishedCreating = tfModule.status !== "creating";
+          if (hasResources && hasFinishedCreating) {
             const hasAllResourcesProvisioned = tfModule.resources.every(
               (r) => r.provisioned
             );
@@ -154,69 +161,79 @@ export const SharedStatus: React.FC<{
     globalErrors: TFResourceError[],
     gotDesired?: boolean
   ) => {
-    let tmpTfModules = [...(tfModules || [])];
+    console.log(
+      index,
+      addedResources,
+      erroredResources,
+      globalErrors,
+      gotDesired
+    );
+    setTFModules((modules) => {
+      let tmpTfModules = [...(modules || [])];
 
-    if (!tmpTfModules[index]?.resources) {
-      tmpTfModules[index] = {
-        resources: [],
-        ...(tmpTfModules[index] || {}),
-      } as TFModule;
-    }
+      if (!tmpTfModules[index]?.resources) {
+        tmpTfModules[index] = {
+          resources: [],
+          ...(tmpTfModules[index] || {}),
+        } as TFModule;
+      }
 
-    if (!tmpTfModules[index]?.global_errors) {
-      tmpTfModules[index] = {
-        global_errors: [],
-        ...(tmpTfModules[index] || {}),
-      } as TFModule;
-    }
+      if (!tmpTfModules[index]?.global_errors) {
+        tmpTfModules[index] = {
+          global_errors: [],
+          ...(tmpTfModules[index] || {}),
+        } as TFModule;
+      }
 
-    if (gotDesired) {
-      tmpTfModules[index].got_desired = true;
-    }
+      if (gotDesired) {
+        tmpTfModules[index].got_desired = true;
+      }
 
-    let resources = tmpTfModules[index].resources;
+      let resources = tmpTfModules[index].resources;
 
-    // construct map of tf resources addresses to indices
-    let resourceAddrMap = new Map<string, number>();
-    debugger;
-    tmpTfModules[index].resources?.forEach((resource, index) => {
-      resourceAddrMap.set(resource.addr, index);
-    });
+      // construct map of tf resources addresses to indices
+      let resourceAddrMap = new Map<string, number>();
 
-    for (let addedResource of addedResources) {
-      // if exists, update state to provisioned
-      if (resourceAddrMap.has(addedResource.addr)) {
-        let currResource = resources[resourceAddrMap.get(addedResource.addr)];
-        addedResource.errored = currResource.errored;
-        resources[resourceAddrMap.get(addedResource.addr)] = addedResource;
-      } else {
-        resources.push(addedResource);
-        resourceAddrMap.set(addedResource.addr, resources.length - 1);
+      tmpTfModules[index].resources?.forEach((resource, index) => {
+        resourceAddrMap.set(resource.addr, index);
+      });
 
-        // if the resource is being added but there's not a desired state, re-query for the
-        // desired state
-        if (!tmpTfModules[index].got_desired) {
-          updateDesiredState(index, tmpTfModules[index]);
+      for (let addedResource of addedResources) {
+        // if exists, update state to provisioned
+        if (resourceAddrMap.has(addedResource.addr)) {
+          let currResource = resources[resourceAddrMap.get(addedResource.addr)];
+          addedResource.errored = currResource.errored;
+          resources[resourceAddrMap.get(addedResource.addr)] = addedResource;
+        } else {
+          resources.push(addedResource);
+          resourceAddrMap.set(addedResource.addr, resources.length - 1);
+
+          // if the resource is being added but there's not a desired state, re-query for the
+          // desired state
+          if (!tmpTfModules[index].got_desired) {
+            updateDesiredState(index, tmpTfModules[index]);
+          }
         }
       }
-    }
 
-    for (let erroredResource of erroredResources) {
-      // if exists, update state to provisioned
-      if (resourceAddrMap.has(erroredResource.addr)) {
-        resources[resourceAddrMap.get(erroredResource.addr)] = erroredResource;
-      } else {
-        resources.push(erroredResource);
-        resourceAddrMap.set(erroredResource.addr, resources.length - 1);
+      for (let erroredResource of erroredResources) {
+        // if exists, update state to provisioned
+        if (resourceAddrMap.has(erroredResource.addr)) {
+          resources[
+            resourceAddrMap.get(erroredResource.addr)
+          ] = erroredResource;
+        } else {
+          resources.push(erroredResource);
+          resourceAddrMap.set(erroredResource.addr, resources.length - 1);
+        }
       }
-    }
 
-    tmpTfModules[index].global_errors = [
-      ...tmpTfModules[index].global_errors,
-      ...globalErrors,
-    ];
-
-    setTFModules([...tmpTfModules]);
+      tmpTfModules[index].global_errors = [
+        ...tmpTfModules[index].global_errors,
+        ...globalErrors,
+      ];
+      return tmpTfModules;
+    });
   };
 
   const setupInfraWebsocket = (
@@ -314,42 +331,40 @@ export const SharedStatus: React.FC<{
     updateTFModules(index, addedResources, [], [], true);
   };
 
-  const updateDesiredState = (index: number, val: TFModule) => {
-    api
-      .getInfraDesired(
+  const updateDesiredState = async (index: number, val: TFModule) => {
+    let desiredState = null;
+    let currentState = null;
+
+    try {
+      const res = await api.getInfraDesired(
         "<token>",
         {},
-        { project_id: project_id, infra_id: val?.id }
-      )
-      .then((resDesired) => {
-        api
-          .getInfraCurrent(
-            "<token>",
-            {},
-            { project_id: project_id, infra_id: val?.id }
-          )
-          .then((resCurrent) => {
-            var desired = resDesired.data;
-            var current = resCurrent.data;
+        { project_id, infra_id: val?.id }
+      );
+      desiredState = res.data;
+    } catch (error) {
+      console.error(error);
+      return;
+    }
 
-            // convert current state to a lookup table
-            var currentMap: Map<string, string> = new Map();
+    try {
+      const res = await api.getInfraCurrent(
+        "<token>",
+        {},
+        { project_id, infra_id: val?.id }
+      );
+      currentState = res.data;
+    } catch (error) {
+      console.error(error);
+    }
 
-            current?.resources?.forEach((val: any) => {
-              currentMap.set(val?.type + "." + val?.name, "");
-            });
+    let currentMap = new Map();
 
-            mergeCurrentAndDesired(index, desired, currentMap);
-          })
-          .catch((err) => {
-            var desired = resDesired.data;
-            var currentMap: Map<string, string> = new Map();
+    currentState?.resources?.forEach((val: any) => {
+      currentMap.set(val?.type + "." + val?.name, "");
+    });
 
-            // merge with empty current map
-            mergeCurrentAndDesired(index, desired, currentMap);
-          });
-      })
-      .catch((err) => console.log(err));
+    mergeCurrentAndDesired(index, desiredState, currentMap);
   };
 
   const sortedModules = useMemo(() => {
