@@ -117,19 +117,19 @@ const ChartList: React.FunctionComponent<Props> = ({
         setCharts((currentCharts) => {
           switch (event.event_type) {
             case "ADD":
-              if (currentCharts.find(isSameChart)) {
+              if (currentCharts?.find(isSameChart)) {
                 return currentCharts;
               }
-              return currentCharts.concat(newChart);
+              return currentCharts?.concat(newChart);
             case "UPDATE":
-              return currentCharts.map((chart) => {
+              return currentCharts?.map((chart) => {
                 if (isSameChart(chart) && newChart.version >= chart.version) {
                   return newChart;
                 }
                 return chart;
               });
             case "DELETE":
-              return currentCharts.filter((chart) => !isSameChart(chart));
+              return currentCharts?.filter((chart) => !isSameChart(chart));
             default:
               return currentCharts;
           }
@@ -300,12 +300,14 @@ const ChartList: React.FunctionComponent<Props> = ({
         }
       });
     }
-    return () => (isSubscribed = false);
+    return () => {
+      isSubscribed = false;
+    };
   }, [namespace, currentView]);
 
   const filteredCharts = useMemo(() => {
     const result = charts
-      .filter((chart: ChartType) => {
+      ?.filter((chart: ChartType) => {
         return (
           (currentView == "jobs" && chart.chart.metadata.name == "job") ||
           ((currentView == "applications" ||
@@ -313,7 +315,7 @@ const ChartList: React.FunctionComponent<Props> = ({
             chart.chart.metadata.name != "job")
         );
       })
-      .filter((chart: ChartType) => {
+      ?.filter((chart: ChartType) => {
         if (currentView !== "jobs") {
           return true;
         }
