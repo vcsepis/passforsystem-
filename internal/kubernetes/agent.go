@@ -44,6 +44,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/remotecommand"
 
+	"helm.sh/helm/v3/pkg/chart"
 	rspb "helm.sh/helm/v3/pkg/release"
 )
 
@@ -1198,4 +1199,53 @@ func isPodReady(pod *v1.Pod) bool {
 
 func isPodExited(pod *v1.Pod) bool {
 	return pod.Status.Phase == v1.PodSucceeded || pod.Status.Phase == v1.PodFailed
+}
+
+func clearOutDataFromRelease(release *rspb.Release) *rspb.Release {
+	release.Chart.Files = []*chart.File{}
+	release.Chart.Templates = []*chart.File{}
+	release.Manifest = ""
+	release.Chart.Values = nil
+	release.Info.Notes = ""
+	return release
+}
+
+func timeTrack(start time.Time, name string) {
+	elapsed := time.Since(start)
+	fmt.Printf("\n\n%s took %s\n\n", name, elapsed)
+}
+
+func (a *Agent) getSecretList(namespace string) (*v1.SecretList, error) {
+	defer timeTrack(time.Now(), "GET SECRETS")
+	return a.Clientset.CoreV1().Secrets(namespace).List(context.TODO(), metav1.ListOptions{
+		LabelSelector: "owner=helm",
+	})
+}
+
+func (a *Agent) GetHelmReleasesSecrets(namespace string) ([]*rspb.Release, error) {
+	secretList, err := a.getSecretList(namespace)
+
+	if err != nil {
+		return nil, err
+	}
+
+	secrets := secretList.Items
+
+	defer timeTrack(time.Now(), "PARSE RELEASE")
+	helm_objects := make([]*rspb.Release, 0)
+
+	empty_string_array := make([]string, 0)
+
+	for i := 0; i < len(secrets); i++ {
+		current_secret := secrets[i]
+
+		helm_object, _, err := parseSecretToHelmRelease(current_secret, empty_string_array)
+
+		helm_object = clearOutDataFromRelease(helm_object)
+
+		if err == nil {
+			helm_objects = append(helm_objects, helm_object)
+		}
+	}
+	return helm_objects, nil
 }

@@ -38,21 +38,36 @@ func (c *ListReleasesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	namespace := r.Context().Value(types.NamespaceScope).(string)
 	cluster, _ := r.Context().Value(types.ClusterScope).(*models.Cluster)
 
-	helmAgent, err := c.GetHelmAgent(r, cluster, "")
+	// helmAgent, err := c.GetHelmAgent(r, cluster, "")
+	agent, err := c.GetAgent(r, cluster, "")
 
 	if err != nil {
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
 		return
 	}
 
-	releases, err := helmAgent.ListReleases(namespace, request.ReleaseListFilter)
+	releases, err := agent.GetHelmReleasesSecrets(namespace)
+
+	// UNCOMMENT FOR TESTING DIRECT USE OF THE HELM AGENT LIST RELEASES
+	// releases, err := func() ([]*release.Release, error) {
+	// 	defer timeTrack(time.Now(), "GET RELEASES")
+	// 	return helmAgent.ListReleases(namespace, request.ReleaseListFilter)
+	// }()
 
 	if err != nil {
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
 		return
 	}
 
-	var res types.ListReleasesResponse = releases
+	// var res types.ListReleasesResponse = releases
 
-	c.WriteResult(w, r, res)
+	// c.WriteResult(w, r, res)
+	// release := releases[0]
+	// release.Data["release"] = nil
+	c.WriteResult(w, r, releases)
 }
+
+// func timeTrack(start time.Time, name string) {
+// 	elapsed := time.Since(start)
+// 	fmt.Printf("\n\n%s took %s\n\n", name, elapsed)
+// }
