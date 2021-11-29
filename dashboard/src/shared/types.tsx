@@ -50,6 +50,28 @@ export interface ChartType {
   latest_version: string;
 }
 
+export interface HelmSecretType {
+  metadata: {
+    name: string;
+    namespace: string;
+    uid: string;
+    resourceVersion: string;
+    creationTimestamp: string;
+    labels: {
+      [key: string]: unknown;
+      modifiedAt: string;
+      name: string;
+      owner: string;
+      status: string;
+      version: string;
+    };
+  };
+  data: {
+    release: string;
+  };
+  type: string;
+}
+
 export interface ChartTypeWithExtendedConfig extends ChartType {
   config: {
     auto_deploy: boolean;
