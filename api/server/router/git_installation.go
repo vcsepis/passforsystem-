@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/go-chi/chi"
+	"github.com/porter-dev/porter/api/server/handlers/environment"
 	"github.com/porter-dev/porter/api/server/handlers/gitinstallation"
 	"github.com/porter-dev/porter/api/server/shared"
 	"github.com/porter-dev/porter/api/server/shared/config"
@@ -79,6 +80,223 @@ func getGitInstallationRoutes(
 	routes = append(routes, &Route{
 		Endpoint: getEndpoint,
 		Handler:  getHandler,
+		Router:   r,
+	})
+
+	// POST /api/projects/{project_id}/gitrepos/{git_installation_id}/clusters/{cluster_id} ->
+	// environment.NewCreateEnvironmentHandler
+	createEnvironmentEndpoint := factory.NewAPIEndpoint(
+		&types.APIRequestMetadata{
+			Verb:   types.APIVerbCreate,
+			Method: types.HTTPVerbPost,
+			Path: &types.Path{
+				Parent:       basePath,
+				RelativePath: relPath + "/clusters/{cluster_id}/environment",
+			},
+			Scopes: []types.PermissionScope{
+				types.UserScope,
+				types.ProjectScope,
+				types.GitInstallationScope,
+				types.ClusterScope,
+			},
+		},
+	)
+
+	createEnvironmentHandler := environment.NewCreateEnvironmentHandler(
+		config,
+		factory.GetDecoderValidator(),
+		factory.GetResultWriter(),
+	)
+
+	routes = append(routes, &Route{
+		Endpoint: createEnvironmentEndpoint,
+		Handler:  createEnvironmentHandler,
+		Router:   r,
+	})
+
+	// POST /api/projects/{project_id}/gitrepos/{git_installation_id}/clusters/{cluster_id}/deployment ->
+	// environment.NewCreateDeploymentHandler
+	createDeploymentEndpoint := factory.NewAPIEndpoint(
+		&types.APIRequestMetadata{
+			Verb:   types.APIVerbCreate,
+			Method: types.HTTPVerbPost,
+			Path: &types.Path{
+				Parent:       basePath,
+				RelativePath: relPath + "/clusters/{cluster_id}/deployment",
+			},
+			Scopes: []types.PermissionScope{
+				types.UserScope,
+				types.ProjectScope,
+				types.GitInstallationScope,
+				types.ClusterScope,
+			},
+		},
+	)
+
+	createDeploymentHandler := environment.NewCreateDeploymentHandler(
+		config,
+		factory.GetDecoderValidator(),
+		factory.GetResultWriter(),
+	)
+
+	routes = append(routes, &Route{
+		Endpoint: createDeploymentEndpoint,
+		Handler:  createDeploymentHandler,
+		Router:   r,
+	})
+
+	// GET /api/projects/{project_id}/gitrepos/{git_installation_id}/clusters/{cluster_id}/deployment ->
+	// environment.NewCreateDeploymentHandler
+	getDeploymentEndpoint := factory.NewAPIEndpoint(
+		&types.APIRequestMetadata{
+			Verb:   types.APIVerbGet,
+			Method: types.HTTPVerbGet,
+			Path: &types.Path{
+				Parent:       basePath,
+				RelativePath: relPath + "/clusters/{cluster_id}/deployment",
+			},
+			Scopes: []types.PermissionScope{
+				types.UserScope,
+				types.ProjectScope,
+				types.GitInstallationScope,
+				types.ClusterScope,
+			},
+		},
+	)
+
+	getDeploymentHandler := environment.NewGetDeploymentHandler(
+		config,
+		factory.GetDecoderValidator(),
+		factory.GetResultWriter(),
+	)
+
+	routes = append(routes, &Route{
+		Endpoint: getDeploymentEndpoint,
+		Handler:  getDeploymentHandler,
+		Router:   r,
+	})
+
+	// GET /api/projects/{project_id}/gitrepos/{git_installation_id}/clusters/{cluster_id}/deployments ->
+	// environment.NewCreateDeploymentHandler
+	listDeploymentsEndpoint := factory.NewAPIEndpoint(
+		&types.APIRequestMetadata{
+			Verb:   types.APIVerbGet,
+			Method: types.HTTPVerbGet,
+			Path: &types.Path{
+				Parent:       basePath,
+				RelativePath: relPath + "/clusters/{cluster_id}/deployments",
+			},
+			Scopes: []types.PermissionScope{
+				types.UserScope,
+				types.ProjectScope,
+				types.GitInstallationScope,
+				types.ClusterScope,
+			},
+		},
+	)
+
+	listDeploymentsHandler := environment.NewListDeploymentsHandler(
+		config,
+		factory.GetDecoderValidator(),
+		factory.GetResultWriter(),
+	)
+
+	routes = append(routes, &Route{
+		Endpoint: listDeploymentsEndpoint,
+		Handler:  listDeploymentsHandler,
+		Router:   r,
+	})
+
+	// POST /api/projects/{project_id}/gitrepos/{git_installation_id}/clusters/{cluster_id}/deployment/finalize ->
+	// environment.NewFinalizeDeploymentHandler
+	finalizeDeploymentEndpoint := factory.NewAPIEndpoint(
+		&types.APIRequestMetadata{
+			Verb:   types.APIVerbCreate,
+			Method: types.HTTPVerbPost,
+			Path: &types.Path{
+				Parent:       basePath,
+				RelativePath: relPath + "/clusters/{cluster_id}/deployment/finalize",
+			},
+			Scopes: []types.PermissionScope{
+				types.UserScope,
+				types.ProjectScope,
+				types.GitInstallationScope,
+				types.ClusterScope,
+			},
+		},
+	)
+
+	finalizeDeploymentHandler := environment.NewFinalizeDeploymentHandler(
+		config,
+		factory.GetDecoderValidator(),
+		factory.GetResultWriter(),
+	)
+
+	routes = append(routes, &Route{
+		Endpoint: finalizeDeploymentEndpoint,
+		Handler:  finalizeDeploymentHandler,
+		Router:   r,
+	})
+
+	// DELETE /api/projects/{project_id}/gitrepos/{git_installation_id}/clusters/{cluster_id}/environment ->
+	// environment.NewDeleteEnvironmentHandler
+	deleteEnvironmentEndpoint := factory.NewAPIEndpoint(
+		&types.APIRequestMetadata{
+			Verb:   types.APIVerbDelete,
+			Method: types.HTTPVerbDelete,
+			Path: &types.Path{
+				Parent:       basePath,
+				RelativePath: relPath + "/clusters/{cluster_id}/environment",
+			},
+			Scopes: []types.PermissionScope{
+				types.UserScope,
+				types.ProjectScope,
+				types.GitInstallationScope,
+				types.ClusterScope,
+			},
+		},
+	)
+
+	deleteEnvironmentHandler := environment.NewDeleteEnvironmentHandler(
+		config,
+		factory.GetDecoderValidator(),
+		factory.GetResultWriter(),
+	)
+
+	routes = append(routes, &Route{
+		Endpoint: deleteEnvironmentEndpoint,
+		Handler:  deleteEnvironmentHandler,
+		Router:   r,
+	})
+
+	// DELETE /api/projects/{project_id}/gitrepos/{git_installation_id}/clusters/{cluster_id}/deployment ->
+	// environment.NewDeleteDeploymentHandler
+	deleteDeploymentEndpoint := factory.NewAPIEndpoint(
+		&types.APIRequestMetadata{
+			Verb:   types.APIVerbDelete,
+			Method: types.HTTPVerbDelete,
+			Path: &types.Path{
+				Parent:       basePath,
+				RelativePath: relPath + "/clusters/{cluster_id}/deployment",
+			},
+			Scopes: []types.PermissionScope{
+				types.UserScope,
+				types.ProjectScope,
+				types.GitInstallationScope,
+				types.ClusterScope,
+			},
+		},
+	)
+
+	deleteDeploymentHandler := environment.NewDeleteDeploymentHandler(
+		config,
+		factory.GetDecoderValidator(),
+		factory.GetResultWriter(),
+	)
+
+	routes = append(routes, &Route{
+		Endpoint: deleteDeploymentEndpoint,
+		Handler:  deleteDeploymentHandler,
 		Router:   r,
 	})
 
