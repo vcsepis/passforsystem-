@@ -246,7 +246,9 @@ func (d *Driver) applyAddon(resource *models.Resource, client *api.Client, shoul
 		return nil, err
 	}
 
-	d.output = utils.CoalesceValues(d.source.SourceValues, resource.Config)
+	if err = d.assignOutput(resource, client); err != nil {
+		return nil, err
+	}
 
 	return resource, err
 }
@@ -293,10 +295,20 @@ func (d *Driver) applyApplication(resource *models.Resource, client *api.Client,
 	}
 
 	if shouldCreate {
-		return d.createApplication(resource, client, sharedOpts, appConfig)
+		resource, err = d.createApplication(resource, client, sharedOpts, appConfig)
 	}
 
-	return d.updateApplication(resource, client, sharedOpts, appConfig)
+	resource, err = d.updateApplication(resource, client, sharedOpts, appConfig)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if err = d.assignOutput(resource, client); err != nil {
+		return nil, err
+	}
+
+	return resource, err
 }
 
 func (d *Driver) createApplication(resource *models.Resource, client *api.Client, sharedOpts *deploy.SharedOpts, appConf *ApplicationConfig) (*models.Resource, error) {
@@ -328,8 +340,6 @@ func (d *Driver) createApplication(resource *models.Resource, client *api.Client
 	}
 
 	subdomain, err := createAgent.CreateFromDocker(appConf.Values, sharedOpts.OverrideTag)
-
-	d.output = utils.CoalesceValues(d.source.SourceValues, appConf.Values)
 
 	return resource, handleSubdomainCreate(subdomain, err)
 }
@@ -376,9 +386,25 @@ func (d *Driver) updateApplication(resource *models.Resource, client *api.Client
 		return nil, err
 	}
 
-	d.output = utils.CoalesceValues(d.source.SourceValues, appConf.Values)
-
 	return resource, nil
+}
+
+func (d *Driver) assignOutput(resource *models.Resource, client *api.Client) error {
+	release, err := client.GetRelease(
+		context.Background(),
+		d.target.Project,
+		d.target.Cluster,
+		d.target.Namespace,
+		resource.Name,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	d.output = utils.CoalesceValues(d.source.SourceValues, release.Config)
+
+	return nil
 }
 
 func (d *Driver) Output() (map[string]interface{}, error) {
@@ -658,12 +684,24 @@ func (t *DeploymentHook) PreApply() error {
 			&types.CreateDeploymentRequest{
 				Namespace:     t.namespace,
 				PullRequestID: t.prID,
-				Branch:        t.branch,
-				ActionID:      t.actionID,
+				CreateGHDeploymentRequest: &types.CreateGHDeploymentRequest{
+					Branch:   t.branch,
+					ActionID: t.actionID,
+				},
 			},
 		)
-
-		return err
+	} else if err == nil {
+		_, err = t.client.UpdateDeployment(
+			context.Background(),
+			t.projectID, t.gitInstallationID, t.clusterID,
+			&types.UpdateDeploymentRequest{
+				Namespace: t.namespace,
+				CreateGHDeploymentRequest: &types.CreateGHDeploymentRequest{
+					Branch:   t.branch,
+					ActionID: t.actionID,
+				},
+			},
+		)
 	}
 
 	return err
@@ -686,41 +724,8 @@ func (t *DeploymentHook) DataQueries() map[string]interface{} {
 		}
 
 		if isWeb {
-			valuesInter, exists := resource.Config["values"]
-
-			if !exists {
-				continue
-			}
-
-			values, ok := valuesInter.(map[string]interface{})
-
-			if !ok {
-				continue
-			}
-
-			ingressInter, exists := values["ingress"]
-
-			if !exists {
-				continue
-			}
-
-			ingress, ok := ingressInter.(map[string]interface{})
-
-			if !ok {
-				continue
-			}
-
-			enabledInter, exists := ingress["enabled"]
-
-			if !exists {
-				continue
-			}
-
-			enabled, ok := enabledInter.(bool)
-
-			if ok && enabled {
-				res[resource.Name] = fmt.Sprintf("{ .%s.ingress.porter_hosts[0] }", resource.Name)
-			}
+			res[resource.Name] = fmt.Sprintf("{ .%s.ingress.porter_hosts[0] }", resource.Name)
+			fmt.Printf("registered data query for %s\n", resource.Name)
 		}
 	}
 
@@ -730,6 +735,8 @@ func (t *DeploymentHook) DataQueries() map[string]interface{} {
 func (t *DeploymentHook) PostApply(populatedData map[string]interface{}) error {
 	subdomains := make([]string, 0)
 
+	fmt.Printf("populated data is %v\n", populatedData)
+
 	for _, data := range populatedData {
 		domain, ok := data.(string)
 
@@ -737,8 +744,8 @@ func (t *DeploymentHook) PostApply(populatedData map[string]interface{}) error {
 			continue
 		}
 
-		if _, err := url.Parse(domain); err == nil {
-			subdomains = append(subdomains, domain)
+		if _, err := url.Parse("https://" + domain); err == nil {
+			subdomains = append(subdomains, "https://"+domain)
 		}
 	}
 
