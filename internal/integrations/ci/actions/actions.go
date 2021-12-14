@@ -370,12 +370,8 @@ func (g *GithubActions) getPorterYMLFileName() string {
 	)
 }
 
-func (g *GithubActions) getPorterTokenSecretName() string {
-	if g.InstanceName != "" {
-		return fmt.Sprintf("PORTER_TOKEN_%s_%d", strings.ToUpper(g.InstanceName), g.ProjectID)
-	}
-
-	return fmt.Sprintf("PORTER_TOKEN_%d", g.ProjectID)
+func getPorterTokenSecretName(projID uint) string {
+	return fmt.Sprintf("PORTER_TOKEN_%d", projID)
 }
 
 func commitGithubFile(
