@@ -21,7 +21,8 @@ import (
 )
 
 type GithubActions struct {
-	ServerURL string
+	ServerURL    string
+	InstanceName string
 
 	GithubOAuthIntegration *models.GitRepo
 	GitRepoName            string
@@ -357,13 +358,24 @@ func (g *GithubActions) getBuildEnvSecretName() string {
 }
 
 func (g *GithubActions) getPorterYMLFileName() string {
+	if g.InstanceName != "" {
+		return fmt.Sprintf("porter_%s_%s.yml", strings.Replace(
+			strings.ToLower(g.ReleaseName), "-", "_", -1),
+			strings.ToLower(g.InstanceName),
+		)
+	}
+
 	return fmt.Sprintf("porter_%s.yml", strings.Replace(
 		strings.ToLower(g.ReleaseName), "-", "_", -1),
 	)
 }
 
-func getPorterTokenSecretName(projID uint) string {
-	return fmt.Sprintf("PORTER_TOKEN_%d", projID)
+func (g *GithubActions) getPorterTokenSecretName() string {
+	if g.InstanceName != "" {
+		return fmt.Sprintf("PORTER_TOKEN_%s_%d", strings.ToUpper(g.InstanceName), g.ProjectID)
+	}
+
+	return fmt.Sprintf("PORTER_TOKEN_%d", g.ProjectID)
 }
 
 func commitGithubFile(
