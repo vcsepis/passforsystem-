@@ -25,6 +25,7 @@ require (
 	github.com/go-redis/redis/v8 v8.11.0
 	github.com/go-test/deep v1.0.7
 	github.com/golang-jwt/jwt/v4 v4.2.0 // indirect
+	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-github/v29 v29.0.3 // indirect
 	github.com/google/go-github/v39 v39.2.0 // indirect
 	github.com/google/go-github/v41 v41.0.0
