@@ -24,9 +24,9 @@ ARG version=production
 
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=$GOPATH/pkg/mod \
-    go build -ldflags="-w -s -X 'main.Version=${version}'" -tags ee -a -o ./bin/app ./cmd/app && \
-    go build -ldflags '-w -s' -a -tags ee -o ./bin/migrate ./cmd/migrate && \
-    go build -ldflags '-w -s' -a -tags ee -o ./bin/ready ./cmd/ready
+    go build -ldflags="-X 'main.Version=${version}'" -tags ee -o ./bin/app ./cmd/app && \
+    go build -tags ee -o ./bin/migrate ./cmd/migrate && \
+    go build -tags ee -o ./bin/ready ./cmd/ready
 
 # Go test environment
 # -------------------
@@ -46,6 +46,8 @@ COPY ./dashboard ./
 RUN npm install -g npm@8.1
 
 RUN npm i --legacy-peer-deps
+
+ENV NODE_ENV=production
 
 RUN npm run build
 
