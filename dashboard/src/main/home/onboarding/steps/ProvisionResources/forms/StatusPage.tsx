@@ -272,7 +272,7 @@ export const StatusPage = ({
         // parse the data
         const parsedData = JSON.parse(evt.data);
 
-        const addedResources: TFResource[] = [];
+        const addedResources = new Map<string, TFResource>();
         const erroredResources: TFResource[] = [];
         const globalErrors: TFResourceError[] = [];
 
@@ -282,14 +282,13 @@ export const StatusPage = ({
           switch (streamValData?.type) {
             case "apply_start":
               const module = handleApplyStart(streamValData);
-
-              addedResources.push(module);
+              addedResources.set(module.addr, module);
 
               break;
             case "apply_complete":
               const appliedModule = handleApplyComplete(streamValData);
 
-              addedResources.push(appliedModule);
+              addedResources.set(appliedModule.addr, appliedModule);
 
               break;
             case "diagnostic":
@@ -315,7 +314,7 @@ export const StatusPage = ({
         }
 
         updateModuleResources(infra_id, [
-          ...addedResources,
+          ...Array.from(addedResources.values()),
           ...erroredResources,
         ]);
 
