@@ -146,7 +146,7 @@ const StyledUpgradeChartModal = styled.div`
   height: 100%;
   padding: 25px 30px;
   overflow: hidden;
-  border-radius: 6px;
+  border-radius: 10px;
   background: #202227;
   font-size: 13px;
   line-height: 1.8em;

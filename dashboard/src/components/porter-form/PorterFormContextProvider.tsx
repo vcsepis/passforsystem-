@@ -417,6 +417,9 @@ export const PorterFormContextProvider: React.FC<Props> = (props) => {
       ? restructureToNewFields(props.rawFormData)
       : formData;
 
+    console.log("this is the data")
+    console.log(data)
+
     data?.tabs?.map((tab) =>
       tab.sections?.map((section) =>
         section.contents?.map((field) => {
@@ -435,6 +438,7 @@ export const PorterFormContextProvider: React.FC<Props> = (props) => {
     );
     if (props.doDebug) console.log(Object.assign.apply({}, varList));
 
+    console.log("roohrooh")
     return Object.assign.apply({}, varList);
   };
 

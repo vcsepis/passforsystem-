@@ -8,6 +8,7 @@ import { Context } from "shared/Context";
 
 import Loading from "components/Loading";
 import SaveButton from "components/SaveButton";
+import Banner from "components/Banner";
 import { KeyValue } from "components/form-components/KeyValueArray";
 import {
   EnvGroupData,
@@ -28,6 +29,7 @@ type StateType = {
   error: boolean;
   selectedEnvGroup: EnvGroupData | null;
   buttonStatus: string;
+  syncToggled: boolean;
 };
 
 export default class LoadEnvGroupModal extends Component<PropsType, StateType> {
@@ -37,6 +39,7 @@ export default class LoadEnvGroupModal extends Component<PropsType, StateType> {
     error: false,
     selectedEnvGroup: null as EnvGroupData | null,
     buttonStatus: "",
+    syncToggled: false,
   };
 
   onSubmit = () => {
@@ -108,12 +111,9 @@ export default class LoadEnvGroupModal extends Component<PropsType, StateType> {
       .map(([key, value]) => ({ key, value }));
   }
 
-  saveButtonStatus(hasClashingKeys: boolean): string {
+  saveButtonStatus() {
     if (!this.state.selectedEnvGroup) {
       return "No env group selected";
-    }
-    if (hasClashingKeys) {
-      return "There are variables defined in this group that will override existing variables.";
     }
   }
 
@@ -164,6 +164,17 @@ export default class LoadEnvGroupModal extends Component<PropsType, StateType> {
           {this.props.namespace}).
         </Subtitle>
 
+        {
+          clashingKeys.length > 0 && (
+            <>
+              <Br />
+              <Banner type="warning">
+                There are variables defined in this group that will override existing variables.
+              </Banner>
+            </>
+          )
+        }
+
         <GroupModalSections>
           <SidebarSection $expanded={!this.state.selectedEnvGroup}>
             <EnvGroupList>{this.renderEnvGroupList()}</EnvGroupList>
@@ -188,11 +199,23 @@ export default class LoadEnvGroupModal extends Component<PropsType, StateType> {
             </SidebarSection>
           )}
         </GroupModalSections>
-
+        { 
+          this.state.selectedEnvGroup && (
+            <SyncWrapper>
+              <Checkbox 
+                checked={this.state.syncToggled}
+                onClick={() => this.setState({ syncToggled: !this.state.syncToggled })}
+              >
+                <i className="material-icons">done</i>
+              </Checkbox>
+              Auto-sync environment updates
+            </SyncWrapper>
+          )
+        }
         <SaveButton
           disabled={!this.state.selectedEnvGroup}
           text="Load Selected Env Group"
-          status={this.saveButtonStatus(clashingKeys.length > 0)}
+          status={this.saveButtonStatus()}
           onClick={this.onSubmit}
         />
       </StyledLoadEnvGroupModal>
@@ -201,6 +224,41 @@ export default class LoadEnvGroupModal extends Component<PropsType, StateType> {
 }
 
 LoadEnvGroupModal.contextType = Context;
+
+const Br = styled.div`
+  width: 100%;
+  height: 12px;
+`;
+
+const Checkbox = styled.div<{ checked: boolean }>`
+  width: 16px;
+  height: 16px;
+  z-index: 999;
+  border: 1px solid #ffffff55;
+  margin: 1px 10px 0px 1px;
+  border-radius: 3px;
+  background: ${(props) => (props.checked ? "#ffffff22" : "#ffffff11")};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  > i {
+    font-size: 12px;
+    padding-left: 0px;
+    color: #ffffff;
+    display: ${(props) => (props.checked ? "" : "none")};
+  }
+`;
+
+const SyncWrapper = styled.div`
+  position: absolute;
+  right: 255px;
+  bottom: 35px;
+  color: #aaaabb;
+  display: flex;
+  align-items: center;
+`;
 
 const SidebarSection = styled.section<{ $expanded?: boolean }>`
   height: 100%;
@@ -282,7 +340,7 @@ const GroupModalSections = styled.div`
   display: grid;
   gap: 10px;
   grid-template-columns: 1fr 1fr;
-  max-height: 365px;
+  max-height: 400px;
 `;
 
 const PossibleClashingKeys = styled.ul`
@@ -298,7 +356,7 @@ const PossibleClashingKeys = styled.ul`
 
 const ClashingKeyItem = styled.li`
   overflow: hidden;
-  border: 1px solid #292c31;
+  border: 1px solid #ffffff44;
   border-radius: 5px;
 `;
 
@@ -395,6 +453,6 @@ const StyledLoadEnvGroupModal = styled.div`
   height: 100%;
   padding: 25px 30px;
   overflow: hidden;
-  border-radius: 6px;
+  border-radius: 10px;
   background: #202227;
 `;

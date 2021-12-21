@@ -89,10 +89,10 @@ const KeyValueArray: React.FC<Props> = (props) => {
     let push = true;
 
     for (let key in envObj) {
-      for (var i = 0; i < state.values.length; i++) {
-        let existingKey = state.values[i]["key"];
+      for (var i = 0; i < state.values[0].value.length; i++) {
+        let existingKey = state.values[0].value[i]["key"];
         if (key === existingKey) {
-          state.values[i]["value"] = envObj[key];
+          state.values[0].value[i]["value"] = envObj[key];
           push = false;
         }
       }
@@ -152,10 +152,10 @@ const KeyValueArray: React.FC<Props> = (props) => {
             })
           }
           width="765px"
-          height="542px"
+          height="642px"
         >
           <LoadEnvGroupModal
-            existingValues={getProcessedValues(state.values)}
+            existingValues={getProcessedValues(state.values[0].value)}
             namespace={variables.namespace}
             clusterId={variables.clusterId}
             closeModal={() =>
@@ -185,8 +185,29 @@ const KeyValueArray: React.FC<Props> = (props) => {
                   };
                 });
 
+                console.log("Ruh Roh")
+                console.log(newValues);
+
                 return {
-                  values: [...newValues],
+                  values: [
+                    {
+                      key: "normal",
+                      value: [...newValues]
+                    },
+                    {
+                      key: "synced",
+                      value: [
+                        {
+                          name: "name-of-configmap",
+                          version: 1,
+                          keys: [
+                            { name: "SEVEN", secret: false },
+                            { name: "YEARS", secret: true }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
                 };
               });
             }}
@@ -201,7 +222,7 @@ const KeyValueArray: React.FC<Props> = (props) => {
       return (
         <DeleteButton
           onClick={() => {
-            state.values.splice(i, 1);
+            state.values[0].value.splice(i, 1);
             setState((prev) => {
               return {
                 values: prev.values
@@ -230,7 +251,7 @@ const KeyValueArray: React.FC<Props> = (props) => {
   const renderInputList = () => {
     return (
       <>
-        {state.values?.map((entry: any, i: number) => {
+        {state.values[0].value?.map((entry: any, i: number) => {
           // Preprocess non-string env values set via raw Helm values
           let { value } = entry;
           if (typeof value === "object") {
@@ -302,7 +323,7 @@ const KeyValueArray: React.FC<Props> = (props) => {
     <>
       <StyledInputArray>
         <Label>{props.label}</Label>
-        {state.values.length === 0 ? <></> : renderInputList()}
+        {state.values[0].value?.length === 0 ? <></> : renderInputList()}
         {props.isReadOnly ? (
           <></>
         ) : (
@@ -318,20 +339,6 @@ const KeyValueArray: React.FC<Props> = (props) => {
             >
               <i className="material-icons">add</i> Add Row
             </AddRowButton>
-            <Spacer />
-            {variables.namespace && props.envLoader && (
-              <LoadButton
-                onClick={() =>
-                  setState((prev) => {
-                    return {
-                      showEnvModal: !prev.showEnvModal,
-                    };
-                  })
-                }
-              >
-                <img src={sliders} /> Load from Env Group
-              </LoadButton>
-            )}
             {props.fileUpload && (
               <UploadButton
                 onClick={() => {
@@ -348,6 +355,43 @@ const KeyValueArray: React.FC<Props> = (props) => {
           </InputWrapper>
         )}
       </StyledInputArray>
+      {variables.namespace && props.envLoader && (
+        <>
+          <br />
+          <Label>The following environment groups are synced to this application:</Label>
+          <br />
+          <SyncedEnvGroup>
+            <Flex>
+              <img src={sliders} /> my-test-env
+            </Flex>
+            <i className="material-icons">clear</i>
+          </SyncedEnvGroup>
+          <SyncedEnvGroup>
+            <Flex>
+              <img src={sliders} /> my-test-env
+            </Flex>
+            <i className="material-icons">clear</i>
+          </SyncedEnvGroup>
+          <SyncedEnvGroup>
+            <Flex>
+              <img src={sliders} /> my-test-env
+            </Flex>
+            <i className="material-icons">clear</i>
+          </SyncedEnvGroup>
+          <Br />
+          <Button
+            onClick={() =>
+              setState((prev) => {
+                return {
+                  showEnvModal: !prev.showEnvModal,
+                };
+              })
+            }
+          >
+            <i className="material-icons">downloading</i> Load from Env Group
+          </Button>
+        </>
+      )}
       {renderEnvModal()}
       {renderEditorModal()}
     </>
@@ -380,7 +424,7 @@ export const getFinalVariablesForKeyValueArray: GetFinalVariablesFunction = (
   const isNumber = (s: string) => {
     return !isNaN(!s ? NaN : Number(String(s).trim()));
   };
-  state.values.forEach((entry: any, i: number) => {
+  state.values[0].value.forEach((entry: any, i: number) => {
     if (isNumber(entry.value)) {
       obj[entry.key] = entry.value;
     } else {
@@ -393,6 +437,79 @@ export const getFinalVariablesForKeyValueArray: GetFinalVariablesFunction = (
 };
 
 export default KeyValueArray;
+
+const Flex = styled.div`
+  display: flex;
+  align-items: center;
+  > img {
+    height: 16px;
+    margin-right: 15px;
+  }
+`;
+
+const SyncedEnvGroup = styled.div`
+  width: 550px;
+  border-radius: 8px;
+  background: #ffffff11;
+  font-size: 13px;
+  padding: 7px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  > i {
+    color: #aaaabb;
+    font-size: 16px;
+    margin-right: -3px;
+    padding: 5px;
+    border-radius: 20px;
+    cursor: pointer;
+    :hover {
+      background: #ffffff11;
+    }
+  }
+`;
+
+const Br = styled.div`
+  width: 100%;
+  height: 1px;
+`;
+
+const Button = styled.button`
+  height: 35px;
+  font-size: 13px;
+  margin-top: 20px;
+  margin-bottom: 30px;
+  font-weight: 500;
+  font-family: "Work Sans", sans-serif;
+  color: white;
+  padding: 6px 20px 7px 20px;
+  text-align: left;
+  border: 0;
+  border-radius: 5px;
+  background: ${(props) => (!props.disabled ? props.color : "#aaaabb")};
+  box-shadow: ${(props) =>
+    !props.disabled ? "0 2px 5px 0 #00000030" : "none"};
+  cursor: ${(props) => (!props.disabled ? "pointer" : "default")};
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #ffffff11;
+  :focus {
+    outline: 0;
+  }
+  :hover {
+    background-color: #ffffff18;
+  }
+
+  > i {
+    font-size: 18px;
+    color: #aaaabb;
+    margin-left: -5px;
+    margin-right: 12px;
+  }
+`;
 
 const Spacer = styled.div`
   width: 10px;
@@ -520,7 +637,7 @@ const Input = styled.input`
 `;
 
 const Label = styled.div`
-  color: #ffffff;
+  color: #aaaabb;
   margin-bottom: 10px;
 `;
 

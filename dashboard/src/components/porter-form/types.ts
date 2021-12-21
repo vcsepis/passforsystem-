@@ -176,7 +176,7 @@ export interface CheckboxFieldState {}
 export interface KeyValueArrayFieldState {
   values: {
     key: string;
-    value: string;
+    value: any;
   }[];
   showEnvModal: boolean;
   showEditorModal: boolean;

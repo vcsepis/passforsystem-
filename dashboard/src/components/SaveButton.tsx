@@ -151,7 +151,7 @@ const ButtonWrapper = styled.div`
     const baseStyles = `
       display: flex;
       align-items: center;
-      z-index: 99;
+      z-index: 1;
     `;
 
     if (props.clearPosition) {
