@@ -71,7 +71,8 @@ func (c *UpdateDeploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	depl.GitHubDeploymentID = ghDeployment.GetID()
+	depl.GHDeploymentID = ghDeployment.GetID()
+	depl.CommitSHA = request.CommitSHA
 
 	if err != nil {
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))

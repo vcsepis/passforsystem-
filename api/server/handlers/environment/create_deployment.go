@@ -72,7 +72,11 @@ func (c *CreateDeploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 		Namespace:          request.Namespace,
 		Status:             "creating",
 		PullRequestID:      request.PullRequestID,
-		GitHubDeploymentID: ghDeployment.GetID(),
+		GHDeploymentID: ghDeployment.GetID(),
+		RepoOwner: request.GitHubMetadata.RepoOwner,
+		RepoName: request.GitHubMetadata.RepoName,
+		PRName: request.GitHubMetadata.PRName,
+		CommitSHA: request.GitHubMetadata.CommitSHA,
 	})
 
 	if err != nil {
