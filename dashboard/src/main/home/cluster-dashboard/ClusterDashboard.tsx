@@ -201,7 +201,7 @@ class ClusterDashboard extends Component<PropsType, StateType> {
     let { setSidebar } = this.props;
     return (
       <Switch>
-        <Route path="/:baseRoute/:clusterName+/:namespace/:chartName">
+        <Route path="/:baseRoute/:clusterName/:namespace/:chartName">
           <ExpandedChartWrapper
             setSidebar={setSidebar}
             isMetricsInstalled={this.state.isMetricsInstalled}
