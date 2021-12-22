@@ -547,6 +547,11 @@ const useTFModules = () => {
         };
       }
 
+      console.log(
+        `MODULE: ${selectedModule.id}, RESOURCE: ${resource.addr}`,
+        resource
+      );
+
       return {
         ...resource,
         provisioned: correspondedResource.provisioned,
