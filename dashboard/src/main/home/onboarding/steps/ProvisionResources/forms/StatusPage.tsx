@@ -73,6 +73,10 @@ export const StatusPage = ({
 
   const { moduleStatuses } = useModuleChecker(tfModules);
 
+  useEffect(() => {
+    console.log(tfModules);
+  }, [tfModules]);
+
   const filterBySelectedInfras = (currentInfra: Infra) => {
     if (!Array.isArray(selectedFilters) || !selectedFilters?.length) {
       return true;
@@ -212,6 +216,54 @@ export const StatusPage = ({
     }
   };
 
+  const handleApplyStart = (data: any): TFResource => {
+    console.log("HANDLE APPLY START", data);
+
+    const message = String(data["@message"]);
+    if (message?.includes("Destroying")) {
+      return {
+        addr: data?.hook?.resource?.addr,
+        provisioned: true,
+        destroying: true,
+        errored: {
+          errored_out: false,
+        },
+      };
+    }
+
+    return {
+      addr: data?.hook?.resource?.addr,
+      provisioned: false,
+      errored: {
+        errored_out: false,
+      },
+    };
+  };
+
+  const handleApplyComplete = (data: any): TFResource => {
+    console.log("HANDLE APPLY COMPLETE", data);
+
+    const message = String(data["@message"]);
+    if (message?.includes("Destruction complete")) {
+      return {
+        addr: data?.hook?.resource?.addr,
+        provisioned: true,
+        destroyed: true,
+        errored: {
+          errored_out: false,
+        },
+      };
+    }
+
+    return {
+      addr: data?.hook?.resource?.addr,
+      provisioned: true,
+      errored: {
+        errored_out: false,
+      },
+    };
+  };
+
   const connectToLiveUpdateModule = (infra_id: number) => {
     const websocketId = `${infra_id}`;
     const apiPath = `/api/projects/${project_id}/infras/${infra_id}/logs`;
@@ -224,7 +276,7 @@ export const StatusPage = ({
         // parse the data
         const parsedData = JSON.parse(evt.data);
 
-        const addedResources: TFResource[] = [];
+        const addedResources = new Map<string, TFResource>();
         const erroredResources: TFResource[] = [];
         const globalErrors: TFResourceError[] = [];
 
@@ -232,14 +284,15 @@ export const StatusPage = ({
           const streamValData = JSON.parse(streamVal?.Values?.data);
 
           switch (streamValData?.type) {
+            case "apply_start":
+              const module = handleApplyStart(streamValData);
+              addedResources.set(module.addr, module);
+
+              break;
             case "apply_complete":
-              addedResources.push({
-                addr: streamValData?.hook?.resource?.addr,
-                provisioned: true,
-                errored: {
-                  errored_out: false,
-                },
-              });
+              const appliedModule = handleApplyComplete(streamValData);
+
+              addedResources.set(appliedModule.addr, appliedModule);
 
               break;
             case "diagnostic":
@@ -265,7 +318,7 @@ export const StatusPage = ({
         }
 
         updateModuleResources(infra_id, [
-          ...addedResources,
+          ...Array.from(addedResources.values()),
           ...erroredResources,
         ]);
 
@@ -494,14 +547,29 @@ const useTFModules = () => {
         };
       }
 
+      console.log(
+        `MODULE: ${selectedModule.id}, RESOURCE: ${resource.addr}`,
+        resource
+      );
+
       return {
         ...resource,
         provisioned: correspondedResource.provisioned,
         errored,
+        destroyed: correspondedResource?.destroyed,
+        destroying: correspondedResource?.destroying,
       };
     });
 
     selectedModule.resources = updatedModuleResources;
+
+    if (
+      selectedModule.status === "destroying" ||
+      selectedModule.status === "destroyed"
+    ) {
+      setModule(infraId, selectedModule);
+      return;
+    }
 
     const isModuleCreated =
       selectedModule.resources.every((resource) => {
