@@ -111,9 +111,13 @@ const EnvironmentList = () => {
           throw Error("Data is not an array");
         }
 
+        console.log('api returns', data)
+
         data = data.forEach((d) => {
           d.git_installation_id = git_installation_id;
         })
+
+        console.log('patched', data)
 
         return Promise.resolve(data);
       })
@@ -147,6 +151,8 @@ const EnvironmentList = () => {
       data.forEach((d) => {
         result.concat(d)
       });
+
+      console.log('result', result)
       setDeploymentList(result);
     });
 
