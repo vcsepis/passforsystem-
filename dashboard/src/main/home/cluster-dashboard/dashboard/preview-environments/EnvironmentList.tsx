@@ -113,6 +113,12 @@ const EnvironmentList = () => {
 
         console.log('api returns', data)
 
+        data = data.map((d) => {
+          let newData = d;
+          newData.git_installation_id = git_installation_id;
+          return newData
+        })
+
         return Promise.resolve(data);
       })
     .catch((err) => {
