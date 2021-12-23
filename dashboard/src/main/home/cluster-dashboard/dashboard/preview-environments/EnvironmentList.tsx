@@ -113,12 +113,6 @@ const EnvironmentList = () => {
 
         console.log('api returns', data)
 
-        data = data.forEach((d) => {
-          d.git_installation_id = git_installation_id;
-        })
-
-        console.log('patched', data)
-
         return Promise.resolve(data);
       })
     .catch((err) => {
