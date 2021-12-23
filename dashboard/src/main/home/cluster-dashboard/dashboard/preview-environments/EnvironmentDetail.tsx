@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import styled from "styled-components";
 import backArrow from "assets/back_arrow.png";
 import TitleSection from "components/TitleSection";
+import { getQueryParam } from "shared/routing";
 import pr_icon from "assets/pull_request_icon.svg";
 import { useRouteMatch, useLocation } from "react-router";
 import DynamicLink from "components/DynamicLink";
@@ -25,20 +26,15 @@ const EnvironmentDetail = () => {
     Context
   );
 
-  const useQuery = () => {
-    const { search } = useLocation();
-  
-    return React.useMemo(() => new URLSearchParams(search), [search]);
-  }
+  const location = useLocation();
 
   useEffect(() => {
-    let query = useQuery();
     let isSubscribed = true;
+    let git_installation_id = getQueryParam({ location }, "git_installation_id");
 
-    let git_installation_id = parseInt(query.get("git_installation_id"))
     api
     .getPRDeployment(
-      "<token>",
+      "<token>",  
       {
         namespace: params.namespace
       },
