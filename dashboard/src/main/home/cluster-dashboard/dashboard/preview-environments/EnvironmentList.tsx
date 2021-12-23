@@ -121,7 +121,7 @@ const EnvironmentList = () => {
       console.error(err);
       if (isSubscribed) {
         // setHasError(true);
-        setDeploymentList([]);
+        // setDeploymentList([]);
       }
       return Promise.resolve([]);
     })  
@@ -136,11 +136,13 @@ const EnvironmentList = () => {
 
     let uniqueIds = _.uniq(gitInstallations);
 
+    console.log(uniqueIds)
     let promises = uniqueIds.map((git_installation_id) => {
       return getDeployments(git_installation_id)
     });
 
     Promise.all(promises).then((data) => {      
+      console.log('data', data)
       let result:PRDeployment[] = []
       data.forEach((d) => {
         result.concat(d)
