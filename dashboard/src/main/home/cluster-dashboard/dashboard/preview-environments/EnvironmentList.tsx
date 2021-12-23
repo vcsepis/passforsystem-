@@ -143,7 +143,7 @@ const EnvironmentList = () => {
       console.log('data', data)
       let result:PRDeployment[] = []
       data.forEach((d) => {
-        result.concat(d)
+        result = result.concat(d)
       });
 
       console.log('result', result)
