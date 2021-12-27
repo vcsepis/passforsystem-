@@ -76,21 +76,21 @@ func (c *FinalizeDeploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Req
 
 	// Create new deployment status to indicate deployment is ready
 
-	state := "success"
-	env_url := depl.Subdomain
+	// state := "success"
+	// env_url := depl.Subdomain
 
-	deploymentStatusRequest := github.DeploymentStatusRequest{
-		State:          &state,
-		EnvironmentURL: &env_url,
-	}
+	// deploymentStatusRequest := github.DeploymentStatusRequest{
+	// 	State:          &state,
+	// 	EnvironmentURL: &env_url,
+	// }
 
-	_, _, err = client.Repositories.CreateDeploymentStatus(
-		context.Background(),
-		env.GitRepoOwner,
-		env.GitRepoName,
-		depl.GHDeploymentID,
-		&deploymentStatusRequest,
-	)
+	// _, _, err = client.Repositories.CreateDeploymentStatus(
+	// 	context.Background(),
+	// 	env.GitRepoOwner,
+	// 	env.GitRepoName,
+	// 	depl.GHDeploymentID,
+	// 	&deploymentStatusRequest,
+	// )
 
 	if err != nil {
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))

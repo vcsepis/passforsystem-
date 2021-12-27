@@ -52,19 +52,19 @@ func (c *CreateDeploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	}
 
 	// create deployment on GitHub API
-	client, err := getGithubClientFromEnvironment(c.Config(), env)
+	// client, err := getGithubClientFromEnvironment(c.Config(), env)
 
-	if err != nil {
-		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
-		return
-	}
+	// if err != nil {
+	// 	c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+	// 	return
+	// }
 
-	ghDeployment, err := createDeployment(client, env, request.CreateGHDeploymentRequest)
+	// ghDeployment, err := createDeployment(client, env, request.CreateGHDeploymentRequest)
 
-	if err != nil {
-		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
-		return
-	}
+	// if err != nil {
+	// 	c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+	// 	return
+	// }
 
 	// create the deployment
 	depl, err := c.Repo().Environment().CreateDeployment(&models.Deployment{
@@ -72,7 +72,7 @@ func (c *CreateDeploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 		Namespace:          request.Namespace,
 		Status:             "creating",
 		PullRequestID:      request.PullRequestID,
-		GHDeploymentID: ghDeployment.GetID(),
+		// GHDeploymentID: ghDeployment.GetID(),
 		RepoOwner: request.GitHubMetadata.RepoOwner,
 		RepoName: request.GitHubMetadata.RepoName,
 		PRName: request.GitHubMetadata.PRName,

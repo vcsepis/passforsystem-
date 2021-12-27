@@ -57,21 +57,21 @@ func (c *UpdateDeploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	}
 
 	// create deployment on GitHub API
-	client, err := getGithubClientFromEnvironment(c.Config(), env)
+	// client, err := getGithubClientFromEnvironment(c.Config(), env)
 
-	if err != nil {
-		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
-		return
-	}
+	// if err != nil {
+	// 	c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+	// 	return
+	// }
 
-	ghDeployment, err := createDeployment(client, env, request.CreateGHDeploymentRequest)
+	// ghDeployment, err := createDeployment(client, env, request.CreateGHDeploymentRequest)
 
-	if err != nil {
-		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
-		return
-	}
+	// if err != nil {
+	// 	c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+	// 	return
+	// }
 
-	depl.GHDeploymentID = ghDeployment.GetID()
+	// depl.GHDeploymentID = ghDeployment.GetID()
 	depl.CommitSHA = request.CommitSHA
 
 	if err != nil {
