@@ -397,6 +397,7 @@ const ChartList: React.FunctionComponent<Props> = ({
             getChartKey(chart.name, chart.namespace),
             null
           )}
+          isJob={currentView === "jobs"}
         />
       );
     });
