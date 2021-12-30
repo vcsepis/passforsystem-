@@ -93,6 +93,7 @@ type ServerConf struct {
 	// Token for internal retool to authenticate to internal API endpoints
 	RetoolToken string `env:"RETOOL_TOKEN"`
 
+	ProvisionerTest bool `env:"PROVISIONER_TEST,default=false"`
 	// Enable pprof profiling endpoints
 	PprofEnabled bool `env:"PPROF_ENABLED,default=false"`
 
