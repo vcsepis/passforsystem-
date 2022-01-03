@@ -13,28 +13,28 @@ import pr_icon from "assets/pull_request_icon.svg";
 import _ from "lodash";
 
 export type PRDeployment = {
-  id: number,
-  subdomain: string,
-  status: string,
-  environment_id: number,
-  pull_request_id: number,
-  namespace: string,
-  git_installation_id?: number,
-  gh_pr_name: string,
-  gh_repo_owner: string,
-  gh_repo_name: string,
-  gh_commit_sha: string,
-}
+  id: number;
+  subdomain: string;
+  status: string;
+  environment_id: number;
+  pull_request_id: number;
+  namespace: string;
+  git_installation_id?: number;
+  gh_pr_name: string;
+  gh_repo_owner: string;
+  gh_repo_name: string;
+  gh_commit_sha: string;
+};
 
 export type Environment = {
-  id: Number,
-  project_id: number,
-  cluster_id: number,
-  git_installation_id: number,
-  name: string,
-  git_repo_owner: string,
-  git_repo_name: string,
-}
+  id: Number;
+  project_id: number;
+  cluster_id: number;
+  git_installation_id: number;
+  name: string;
+  git_repo_owner: string;
+  git_repo_name: string;
+};
 
 export const capitalize = (s: string) => {
   return s.charAt(0).toUpperCase() + s.substring(1).toLowerCase();
@@ -51,15 +51,14 @@ const EnvironmentList = () => {
     Context
   );
 
-
   const { url: currentUrl } = useRouteMatch();
 
   const location = useLocation();
   const history = useHistory();
 
-    useEffect(() => {
-      let isSubscribed = true;
-      api
+  useEffect(() => {
+    let isSubscribed = true;
+    api
       .listEnvironments(
         "<token>",
         {},
@@ -67,42 +66,41 @@ const EnvironmentList = () => {
           project_id: currentProject.id,
           cluster_id: currentCluster.id,
         }
-      ).then(({ data }) => {
-          if (!isSubscribed) {
-            return;
-          }
-  
-          if (!Array.isArray(data)) {
-            throw Error("Data is not an array");
-          }
-          setEnvironmentList(data);
-        })
-        .catch((err) => {
-          console.error(err);
-          if (isSubscribed) {
-            setHasError(true);
-          }
-        })
-  
-        return () => {
-          isSubscribed = false;
-        };  
-    }, []);
+      )
+      .then(({ data }) => {
+        if (!isSubscribed) {
+          return;
+        }
 
-  
-  const getDeployments = (git_installation_id: number) => {
+        if (!Array.isArray(data)) {
+          throw Error("Data is not an array");
+        }
+        setEnvironmentList(data);
+      })
+      .catch((err) => {
+        console.error(err);
+        if (isSubscribed) {
+          setHasError(true);
+        }
+      });
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, []);
+
+  const getDeployments = () => {
     let isSubscribed = true;
     return api
-    .getPRDeploymentList(
-      "<token>",
-      {},
-      {
-        project_id: currentProject.id,
-        cluster_id: currentCluster.id,
-        git_installation_id: git_installation_id,
-      }
-    )
-    .then(({ data }) => {
+      .getPRDeploymentList(
+        "<token>",
+        {},
+        {
+          project_id: currentProject.id,
+          cluster_id: currentCluster.id,
+        }
+      )
+      .then(({ data }) => {
         if (!isSubscribed) {
           return;
         }
@@ -111,51 +109,32 @@ const EnvironmentList = () => {
           throw Error("Data is not an array");
         }
 
-        console.log('api returns', data)
-
-        data = data.map((d) => {
-          let newData = d;
-          newData.git_installation_id = git_installation_id;
-          return newData
-        })
-
         return Promise.resolve(data);
       })
-    .catch((err) => {
-      console.error(err);
-      if (isSubscribed) {
-        // setHasError(true);
-        // setDeploymentList([]);
-      }
-      return Promise.resolve([]);
-    })  
-  }
+      .catch((err) => {
+        console.error(err);
+        if (isSubscribed) {
+          // setHasError(true);
+          setDeploymentList([]);
+        }
+        return Promise.resolve([]);
+      });
+  };
 
   useEffect(() => {
     let isSubscribed = true;
 
-    let gitInstallations = environmentList.map((e) => {
-      return e.git_installation_id
-    })
+    let promises = [getDeployments()];
 
-    let uniqueIds = _.uniq(gitInstallations);
-
-    console.log(uniqueIds)
-    let promises = uniqueIds.map((git_installation_id) => {
-      return getDeployments(git_installation_id)
-    });
-
-    Promise.all(promises).then((data) => {      
-      console.log('data', data)
-      let result:PRDeployment[] = []
+    Promise.all(promises).then((data) => {
+      let result: PRDeployment[] = [];
       data.forEach((d) => {
-        result = result.concat(d)
+        result.concat(d);
       });
 
-      console.log('result', result)
+      console.log("result", result);
       setDeploymentList(result);
     });
-
 
     if (isSubscribed) {
       setIsLoading(false);
@@ -192,11 +171,7 @@ const EnvironmentList = () => {
   }
 
   if (hasError) {
-    return(
-      <Placeholder>
-       Error
-      </Placeholder>
-    )
+    return <Placeholder>Error</Placeholder>;
   }
 
   if (!environmentList.length) {
@@ -211,13 +186,14 @@ const EnvironmentList = () => {
     if (!deploymentList.length) {
       return (
         <Placeholder>
-          No preview apps have been found. Open a PR to create a new preview app.
+          No preview apps have been found. Open a PR to create a new preview
+          app.
         </Placeholder>
       );
     }
 
     return deploymentList.map((d) => {
-      let repository = `${d.gh_repo_owner}/${d.gh_repo_name}`
+      let repository = `${d.gh_repo_owner}/${d.gh_repo_name}`;
       return (
         <EnvironmentCard key={d.id}>
           <DataContainer>
@@ -227,29 +203,27 @@ const EnvironmentList = () => {
             </PRName>
 
             <Flex>
-            <StatusContainer>
-              <Status>
-                <StatusDot status={d.status} />
-                {capitalize(d.status)}
-              </Status>
-            </StatusContainer>
-            <DeploymentImageContainer>
-              <DeploymentTypeIcon src={integrationList.repo.icon} />
-              <RepositoryName
-                onMouseOver={() => {
-                  setShowRepoTooltip(true);
-                }}
-                onMouseOut={() => {
-                  setShowRepoTooltip(false);
-                }}
-              >
-                {repository}
-              </RepositoryName>
-              {showRepoTooltip && <Tooltip>{repository}</Tooltip>}
-            </DeploymentImageContainer>
+              <StatusContainer>
+                <Status>
+                  <StatusDot status={d.status} />
+                  {capitalize(d.status)}
+                </Status>
+              </StatusContainer>
+              <DeploymentImageContainer>
+                <DeploymentTypeIcon src={integrationList.repo.icon} />
+                <RepositoryName
+                  onMouseOver={() => {
+                    setShowRepoTooltip(true);
+                  }}
+                  onMouseOut={() => {
+                    setShowRepoTooltip(false);
+                  }}
+                >
+                  {repository}
+                </RepositoryName>
+                {showRepoTooltip && <Tooltip>{repository}</Tooltip>}
+              </DeploymentImageContainer>
             </Flex>
-
-
           </DataContainer>
           <Flex>
             <RowButton
@@ -259,19 +233,15 @@ const EnvironmentList = () => {
               <i className="material-icons-outlined">info</i>
               Details
             </RowButton>
-            <RowButton 
-              to={d.subdomain} 
-              key={d.subdomain}
-              target="_blank"
-            >
+            <RowButton to={d.subdomain} key={d.subdomain} target="_blank">
               <i className="material-icons">open_in_new</i>
               View Live
             </RowButton>
           </Flex>
         </EnvironmentCard>
       );
-    }) 
-  }
+    });
+  };
 
   return (
     <Container>
@@ -282,9 +252,11 @@ const EnvironmentList = () => {
         >
           <i className="material-icons">add</i> Add Repository
         </Button>
-        <SettingsButton onClick={() => {
-            setCurrentModal("PreviewEnvSettingsModal", {})
-        }}>
+        <SettingsButton
+          onClick={() => {
+            setCurrentModal("PreviewEnvSettingsModal", {});
+          }}
+        >
           <i className="material-icons-outlined">settings</i>
           Configure
         </SettingsButton>
@@ -295,9 +267,7 @@ const EnvironmentList = () => {
           </SettingsText>
         </Settings> */}
       </ControlRow>
-      <EventsGrid>
-        {renderDeploymentList()}
-      </EventsGrid>
+      <EventsGrid>{renderDeploymentList()}</EventsGrid>
     </Container>
   );
 };

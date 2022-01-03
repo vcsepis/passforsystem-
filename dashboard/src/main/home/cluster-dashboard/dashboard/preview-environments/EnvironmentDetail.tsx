@@ -2,7 +2,6 @@ import React, { useContext, useEffect, useState } from "react";
 import styled from "styled-components";
 import backArrow from "assets/back_arrow.png";
 import TitleSection from "components/TitleSection";
-import { getQueryParam } from "shared/routing";
 import pr_icon from "assets/pull_request_icon.svg";
 import { useRouteMatch, useLocation } from "react-router";
 import DynamicLink from "components/DynamicLink";
@@ -26,24 +25,33 @@ const EnvironmentDetail = () => {
     Context
   );
 
-  const location = useLocation();
+  const useQuery = () => {
+    const { search } = useLocation();
+
+    return React.useMemo(() => new URLSearchParams(search), [search]);
+  };
 
   useEffect(() => {
+    let query = useQuery();
     let isSubscribed = true;
-    let git_installation_id = getQueryParam({ location }, "git_installation_id");
+
+    let git_installation_id = parseInt(query.get("git_installation_id"));
 
     api
-    .getPRDeployment(
-      "<token>",  
-      {
-        namespace: params.namespace
-      },
-      {
-        project_id: currentProject.id,
-        cluster_id: currentCluster.id,
-        git_installation_id: git_installation_id
-      }
-    ).then(({ data }) => {
+      .getPRDeployment(
+        "<token>",
+        {
+          namespace: params.namespace,
+        },
+        {
+          project_id: currentProject.id,
+          cluster_id: currentCluster.id,
+          git_installation_id: git_installation_id,
+          git_repo_owner: environment.gh_repo_owner,
+          git_repo_name: environment.gh_repo_name,
+        }
+      )
+      .then(({ data }) => {
         if (!isSubscribed) {
           return;
         }
@@ -63,16 +71,16 @@ const EnvironmentDetail = () => {
         }
       });
 
-      return () => {
-        isSubscribed = false;
-      };  
+    return () => {
+      isSubscribed = false;
+    };
   }, [params]);
 
   if (!environment) {
     return <Loading />;
   }
 
-  let repository = `${environment.gh_repo_owner}/${environment.gh_repo_name}`
+  let repository = `${environment.gh_repo_owner}/${environment.gh_repo_name}`;
 
   return (
     <StyledExpandedChart>
@@ -83,31 +91,30 @@ const EnvironmentDetail = () => {
         <Title icon={pr_icon} iconWidth="25px">
           {environment.gh_pr_name}
           <DeploymentImageContainer>
-              <DeploymentTypeIcon src={integrationList.repo.icon} />
-              <RepositoryName
-                onMouseOver={() => {
-                  setShowRepoTooltip(true);
-                }}
-                onMouseOut={() => {
-                  setShowRepoTooltip(false);
-                }}
-              >
-                {repository}
-              </RepositoryName>
-              {showRepoTooltip && <Tooltip>{repository}</Tooltip>}
-            </DeploymentImageContainer>
+            <DeploymentTypeIcon src={integrationList.repo.icon} />
+            <RepositoryName
+              onMouseOver={() => {
+                setShowRepoTooltip(true);
+              }}
+              onMouseOut={() => {
+                setShowRepoTooltip(false);
+              }}
+            >
+              {repository}
+            </RepositoryName>
+            {showRepoTooltip && <Tooltip>{repository}</Tooltip>}
+          </DeploymentImageContainer>
           <TagWrapper>
             Namespace <NamespaceTag>{environment.namespace}</NamespaceTag>
           </TagWrapper>
         </Title>
         <InfoWrapper>
-          {
-            environment.subdomain && <PRLink to={environment.subdomain} target="_blank">
-            <i className="material-icons">link</i>
-            {environment.subdomain}
-          </PRLink>
-
-          }
+          {environment.subdomain && (
+            <PRLink to={environment.subdomain} target="_blank">
+              <i className="material-icons">link</i>
+              {environment.subdomain}
+            </PRLink>
+          )}
         </InfoWrapper>
         <Flex>
           <Status>
@@ -115,7 +122,10 @@ const EnvironmentDetail = () => {
             {capitalize(environment.status)}
           </Status>
           <Dot>•</Dot>
-          <GHALink to={`https://github.com/${repository}/pull/${environment.pull_request_id}`} target="_blank">
+          <GHALink
+            to={`https://github.com/${repository}/pull/${environment.pull_request_id}`}
+            target="_blank"
+          >
             <img src={github} /> GitHub
             <i className="material-icons">open_in_new</i>
           </GHALink>
