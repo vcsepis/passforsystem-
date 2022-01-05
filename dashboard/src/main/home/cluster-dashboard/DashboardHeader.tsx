@@ -9,6 +9,7 @@ type PropsType = {
   image: any;
   title: string;
   description: string;
+  materialIconClass?: string;
 };
 
 type StateType = {};
@@ -17,7 +18,11 @@ export default class DashboardHeader extends Component<PropsType, StateType> {
   render() {
     return (
       <>
-        <TitleSection capitalize={true} icon={this.props.image}>
+        <TitleSection
+          capitalize={true}
+          icon={this.props.image}
+          materialIconClass={this.props.materialIconClass}
+        >
           {this.props.title}
         </TitleSection>
 
