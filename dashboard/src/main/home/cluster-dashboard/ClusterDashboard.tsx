@@ -26,6 +26,7 @@ import DashboardRoutes from "./dashboard/Routes";
 import GuardedRoute from "shared/auth/RouteGuard";
 import { withAuth, WithAuthProps } from "shared/auth/AuthorizationHoc";
 import LastRunStatusSelector from "./LastRunStatusSelector";
+import DatabasesHome from "./databases";
 
 type PropsType = RouteComponentProps &
   WithAuthProps & {
@@ -231,6 +232,9 @@ class ClusterDashboard extends Component<PropsType, StateType> {
         >
           {this.renderContents()}
         </GuardedRoute>
+        <Route path={"/databases"}>
+          <DatabasesHome />
+        </Route>
         <Route path={["/cluster-dashboard"]}>
           <DashboardRoutes />
         </Route>
