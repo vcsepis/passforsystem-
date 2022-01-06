@@ -1,5 +1,6 @@
 import React from "react";
 import { Route, Switch, useRouteMatch } from "react-router";
+import CreateDatabaseForm from "./CreateDatabaseForm";
 import DatabasesHome from "./DatabasesHome";
 
 const DatabasesRoutes = () => {
@@ -7,7 +8,9 @@ const DatabasesRoutes = () => {
   return (
     <>
       <Switch>
-        <Route path={`${url}/provision-database`}></Route>
+        <Route path={`${url}/provision-database`}>
+          <CreateDatabaseForm />
+        </Route>
         <Route path={`${url}/`}>
           <DatabasesHome />
         </Route>

@@ -18,6 +18,7 @@ export type DatabaseObject = {
 
 const DatabasesList = () => {
   const { currentCluster, currentProject } = useContext(Context);
+  const { url } = useRouteMatch();
   const [isLoading, setIsLoading] = useState(true);
   const [databases, setDatabases] = useState<DatabaseObject[]>([]);
 
@@ -69,7 +70,7 @@ const DatabasesList = () => {
   return (
     <DatabasesListWrapper>
       <ControlRow>
-        <Link to="provision-database">Create database</Link>
+        <Link to={`${url}/provision-database`}>Create database</Link>
       </ControlRow>
       <StyledTableWrapper>
         <Table columns={columns} data={data} isLoading={isLoading} />
@@ -105,39 +106,6 @@ const ControlRow = styled.div`
   align-items: center;
   margin-bottom: 35px;
   padding-left: 0px;
-`;
-
-const EnvironmentCard = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border: 1px solid #ffffff44;
-  background: #ffffff08;
-  margin-bottom: 5px;
-  border-radius: 10px;
-  padding: 14px;
-  overflow: hidden;
-  height: 80px;
-  font-size: 13px;
-  animation: fadeIn 0.5s;
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-`;
-
-const EventsGrid = styled.div`
-  display: grid;
-  grid-row-gap: 20px;
-  grid-template-columns: 1;
-`;
-
-const Icon = styled.img`
-  width: 100%;
 `;
 
 const Url = styled.a`
