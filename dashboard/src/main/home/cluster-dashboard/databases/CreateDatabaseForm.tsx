@@ -1,11 +1,27 @@
 import InputRow from "components/form-components/InputRow";
 import SelectRow from "components/form-components/SelectRow";
-import React from "react";
+import React, { useContext, useState } from "react";
 import { Link } from "react-router-dom";
+import { Context } from "shared/Context";
 import styled from "styled-components";
 import DashboardHeader from "../DashboardHeader";
+import {
+  LAST_POSTGRES_ENGINE_VERSION,
+  postgres_engine_versions,
+} from "./static_data";
 
 const CreateDatabaseForm = () => {
+  const { currentProject, currentCluster } = useContext(Context);
+  const [databaseName, setDatabaseName] = useState(
+    () => `${currentProject.name}-database`
+  );
+  const [masterUser, setMasterUser] = useState("");
+  const [masterPassword, setMasterPassword] = useState("");
+  const [engineVersion, setEngineVersion] = useState(
+    LAST_POSTGRES_ENGINE_VERSION
+  );
+  const [instanceType, setInstanceType] = useState();
+
   return (
     <>
       <DashboardHeader
@@ -23,36 +39,37 @@ const CreateDatabaseForm = () => {
         <InputRow
           type="string"
           label="Database name"
-          value={""}
-          setValue={() => {}}
+          value={databaseName}
+          setValue={(value: string) => {
+            setDatabaseName(value);
+          }}
           width="100%"
         />
         <InputRow
           type="string"
           label="Master user"
-          value={""}
-          setValue={() => {}}
+          value={masterUser}
+          setValue={(value: string) => {
+            setMasterUser(value);
+          }}
           width="100%"
         />
         <InputRow
           type="string"
           label="Master password"
-          value={""}
-          setValue={() => {}}
-          width="100%"
-        />
-        <SelectRow
-          label="Database engine"
-          options={[]}
-          setActiveValue={() => {}}
-          value=""
+          value={masterPassword}
+          setValue={(value: string) => {
+            setMasterPassword(value);
+          }}
           width="100%"
         />
         <SelectRow
           label="Engine version"
-          options={[]}
-          setActiveValue={() => {}}
-          value=""
+          options={postgres_engine_versions}
+          setActiveValue={(value) => {
+            setEngineVersion(value);
+          }}
+          value={engineVersion}
           width="100%"
         />
         <SelectRow
