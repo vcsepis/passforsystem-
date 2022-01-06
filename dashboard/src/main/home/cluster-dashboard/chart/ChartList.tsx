@@ -123,19 +123,19 @@ const ChartList: React.FunctionComponent<Props> = ({
             : [];
           switch (event.event_type) {
             case "ADD":
-              if (tmpCharts.find(isSameChart)) {
+              if (tmpCharts?.find(isSameChart)) {
                 return tmpCharts;
               }
-              return tmpCharts.concat(newChart);
+              return tmpCharts?.concat(newChart);
             case "UPDATE":
-              return tmpCharts.map((chart) => {
+              return tmpCharts?.map((chart) => {
                 if (isSameChart(chart) && newChart.version >= chart.version) {
                   return newChart;
                 }
                 return chart;
               });
             case "DELETE":
-              return tmpCharts.filter((chart) => !isSameChart(chart));
+              return tmpCharts?.filter((chart) => !isSameChart(chart));
             default:
               return tmpCharts;
           }
