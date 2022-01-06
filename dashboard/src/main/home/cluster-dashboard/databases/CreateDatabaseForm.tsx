@@ -39,6 +39,7 @@ const CreateDatabaseForm = () => {
         <InputRow
           type="string"
           label="Database name"
+          isRequired
           value={databaseName}
           setValue={(value: string) => {
             setDatabaseName(value);
@@ -48,6 +49,7 @@ const CreateDatabaseForm = () => {
         <InputRow
           type="string"
           label="Master user"
+          isRequired
           value={masterUser}
           setValue={(value: string) => {
             setMasterUser(value);
@@ -57,6 +59,7 @@ const CreateDatabaseForm = () => {
         <InputRow
           type="string"
           label="Master password"
+          isRequired
           value={masterPassword}
           setValue={(value: string) => {
             setMasterPassword(value);
