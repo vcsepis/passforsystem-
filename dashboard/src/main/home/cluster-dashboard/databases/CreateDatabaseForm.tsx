@@ -1,14 +1,23 @@
 import InputRow from "components/form-components/InputRow";
 import SelectRow from "components/form-components/SelectRow";
+import SaveButton from "components/SaveButton";
 import React, { useContext, useState } from "react";
 import { Link } from "react-router-dom";
+import api from "shared/api";
 import { Context } from "shared/Context";
+import { useRouting } from "shared/routing";
 import styled from "styled-components";
 import DashboardHeader from "../DashboardHeader";
 import {
+  FORM_DEFAULT_VALUES,
   LAST_POSTGRES_ENGINE_VERSION,
   postgres_engine_versions,
 } from "./static_data";
+
+type ValidationError = {
+  hasError: boolean;
+  description?: string;
+};
 
 const CreateDatabaseForm = () => {
   const { currentProject, currentCluster } = useContext(Context);
@@ -21,7 +30,65 @@ const CreateDatabaseForm = () => {
     LAST_POSTGRES_ENGINE_VERSION
   );
   const [instanceType, setInstanceType] = useState();
+  const [submitStatus, setSubmitStatus] = useState("");
 
+  const { pushFiltered } = useRouting();
+
+  const validateForm = (): ValidationError => {
+    if (!databaseName.length) {
+      return {
+        hasError: true,
+        description: "Database name cannot be empty",
+      };
+    }
+
+    if (!masterUser.length) {
+      return {
+        hasError: true,
+        description: "Master user cannot be empty",
+      };
+    }
+
+    if (!masterPassword.length) {
+      return {
+        hasError: true,
+        description: "Master password cannot be empty",
+      };
+    }
+
+    return {
+      hasError: false,
+    };
+  };
+
+  const handleSubmit = async () => {
+    const validation = validateForm();
+    if (validation.hasError) {
+      setSubmitStatus(validation.description);
+      return;
+    }
+
+    try {
+      await api.provisionDatabase(
+        "<token>",
+        {
+          ...FORM_DEFAULT_VALUES,
+          cluster_id: currentCluster.id,
+          db_name: databaseName,
+          username: masterUser,
+          password: masterPassword,
+          db_engine_version: engineVersion,
+          machine_type: instanceType,
+        },
+        { project_id: currentProject.id }
+      );
+      setSubmitStatus("successful");
+      pushFiltered("/databases", []);
+    } catch (error) {
+      console.error(error);
+      setSubmitStatus("We couldn't process your request, please try again.");
+    }
+  };
   return (
     <>
       <DashboardHeader
@@ -57,7 +124,7 @@ const CreateDatabaseForm = () => {
           width="100%"
         />
         <InputRow
-          type="string"
+          type="password"
           label="Master password"
           isRequired
           value={masterPassword}
@@ -81,6 +148,15 @@ const CreateDatabaseForm = () => {
           setActiveValue={() => {}}
           value=""
           width="100%"
+        />
+        <SubmitButton
+          clearPosition
+          text="Create database"
+          onClick={() => {
+            handleSubmit();
+          }}
+          statusPosition="right"
+          status={submitStatus}
         />
       </FormWrapper>
     </>
@@ -127,4 +203,8 @@ const ControlRow = styled.div`
 const FormWrapper = styled.div`
   max-width: 600px;
   margin: auto;
+`;
+
+const SubmitButton = styled(SaveButton)`
+  margin-top: 20px;
 `;
