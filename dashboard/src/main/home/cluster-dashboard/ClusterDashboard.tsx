@@ -26,7 +26,13 @@ import DashboardRoutes from "./dashboard/Routes";
 import GuardedRoute from "shared/auth/RouteGuard";
 import { withAuth, WithAuthProps } from "shared/auth/AuthorizationHoc";
 import LastRunStatusSelector from "./LastRunStatusSelector";
-import DatabasesRoutes from "./databases/routes";
+import loadable from "@loadable/component";
+import Loading from "components/Loading";
+
+// @ts-ignore
+const LazyDatabasesRoutes = loadable(() => import("./databases/routes.tsx"), {
+  fallback: <Loading />,
+});
 
 type PropsType = RouteComponentProps &
   WithAuthProps & {
@@ -233,7 +239,7 @@ class ClusterDashboard extends Component<PropsType, StateType> {
           {this.renderContents()}
         </GuardedRoute>
         <Route path={"/databases"}>
-          <DatabasesRoutes />
+          <LazyDatabasesRoutes />
         </Route>
         <Route path={["/cluster-dashboard"]}>
           <DashboardRoutes />
