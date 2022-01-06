@@ -201,15 +201,17 @@ class Sidebar extends Component<PropsType, StateType> {
             <Img src={sliders} />
             Env Groups
           </NavButton>
-          <NavButton
-            selected={currentView === "databases"}
-            onClick={() => {
-              pushFiltered(this.props, "/databases", [], {});
-            }}
-          >
-            <Icon className="material-icons-outlined">storage</Icon>
-            Databases
-          </NavButton>
+          {currentCluster.service === "eks" && (
+            <NavButton
+              selected={currentView === "databases"}
+              onClick={() => {
+                pushFiltered(this.props, "/databases", [], {});
+              }}
+            >
+              <Icon className="material-icons-outlined">storage</Icon>
+              Databases
+            </NavButton>
+          )}
         </>
       );
     }
