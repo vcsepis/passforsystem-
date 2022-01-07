@@ -4,6 +4,7 @@ import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useHistory, useLocation, useRouteMatch } from "react-router";
 import { Link } from "react-router-dom";
 import { Column } from "react-table";
+import api from "shared/api";
 import { Context } from "shared/Context";
 import styled from "styled-components";
 import { mock_database_list } from "./mock_data";
@@ -17,19 +18,36 @@ export type DatabaseObject = {
 };
 
 const DatabasesList = () => {
-  const { currentCluster, currentProject } = useContext(Context);
+  const { currentCluster, currentProject, setCurrentError } = useContext(
+    Context
+  );
   const { url } = useRouteMatch();
   const [isLoading, setIsLoading] = useState(true);
   const [databases, setDatabases] = useState<DatabaseObject[]>([]);
 
   useEffect(() => {
     let isSubscribed = true;
+    api
+      .getDatabases(
+        "<token>",
+        {},
+        { project_id: currentProject.id, cluster_id: currentCluster.id }
+      )
+      .then((res) => {
+        if (isSubscribed) {
+          setDatabases(res.data);
+          setIsLoading(false);
+        }
+      })
+      .catch((error) => {
+        console.error(error);
+        setCurrentError(error);
+      });
 
-    if (isSubscribed) {
-      setDatabases(mock_database_list);
-      setIsLoading(false);
-    }
-
+    // if (isSubscribed) {
+    //   setDatabases(mock_database_list);
+    //   setIsLoading(false);
+    // }
     return () => {
       isSubscribed = false;
     };

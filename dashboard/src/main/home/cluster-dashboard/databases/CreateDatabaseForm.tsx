@@ -30,7 +30,7 @@ const CreateDatabaseForm = () => {
   const [engineVersion, setEngineVersion] = useState(
     LAST_POSTGRES_ENGINE_VERSION
   );
-  const [instanceType, setInstanceType] = useState();
+  const [instanceType, setInstanceType] = useState("db.t3.medium");
   const [submitStatus, setSubmitStatus] = useState("");
 
   const { pushFiltered } = useRouting();
@@ -146,9 +146,16 @@ const CreateDatabaseForm = () => {
         />
         <SelectRow
           label="Instance type"
-          options={[]}
-          setActiveValue={() => {}}
-          value=""
+          options={[
+            {
+              label: "db.t3.medium",
+              value: "db.t3.medium",
+            },
+          ]}
+          setActiveValue={(value) => {
+            setInstanceType(value);
+          }}
+          value={instanceType}
           width="100%"
         />
         <Helper>
