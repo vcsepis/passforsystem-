@@ -91,8 +91,6 @@ const CreateDatabaseForm = () => {
     }
   };
 
-  const provisionDatabase = async () => {};
-
   return (
     <>
       <DashboardHeader
