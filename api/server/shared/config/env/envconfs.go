@@ -98,6 +98,7 @@ type ServerConf struct {
 
 	// Disable filtering for project creation
 	DisableAllowlist bool `env:"DISABLE_ALLOWLIST,default=false"`
+	ProvisionerTest  bool `env:"PROVISIONER_TEST,default=false"`
 }
 
 // DBConf is the database configuration: if generated from environment variables,
