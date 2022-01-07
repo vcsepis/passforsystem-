@@ -1227,6 +1227,18 @@ const provisionDatabase = baseApi<
   { project_id: number }
 >("POST", ({ project_id }) => `/api/projects/${project_id}/provision/rds`);
 
+const getDatabases = baseApi<
+  {},
+  {
+    project_id: number;
+    cluster_id: number;
+  }
+>(
+  "GET",
+  ({ project_id, cluster_id }) =>
+    `/api/projects/${project_id}/clusters/${cluster_id}/databases`
+);
+
 // Bundle export to allow default api import (api.<method> is more readable)
 export default {
   checkAuth,
@@ -1353,4 +1365,5 @@ export default {
   getLogBucketLogs,
   getCanCreateProject,
   provisionDatabase,
+  getDatabases,
 };
