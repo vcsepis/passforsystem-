@@ -1,3 +1,4 @@
+import Helper from "components/form-components/Helper";
 import InputRow from "components/form-components/InputRow";
 import SelectRow from "components/form-components/SelectRow";
 import SaveButton from "components/SaveButton";
@@ -89,6 +90,9 @@ const CreateDatabaseForm = () => {
       setSubmitStatus("We couldn't process your request, please try again.");
     }
   };
+
+  const provisionDatabase = async () => {};
+
   return (
     <>
       <DashboardHeader
@@ -149,6 +153,13 @@ const CreateDatabaseForm = () => {
           value=""
           width="100%"
         />
+        <Helper>
+          Please remember that this feature is still on development, this means
+          that if you update the values provided here from your AWS Console
+          porter <b>WILL NOT</b> be able to track those changes. In case is
+          mandatory to change anything please contact the Porter team.
+        </Helper>
+
         <SubmitButton
           clearPosition
           text="Create database"
