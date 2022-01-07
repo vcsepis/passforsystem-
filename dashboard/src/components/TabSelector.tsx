@@ -23,7 +23,7 @@ export default class TabSelector extends Component<PropsType, StateType> {
     const currentOption = this.props.options.find(
       (option) => option.value === this.props.currentTab
     );
-    if (currentOption.component) {
+    if (currentOption?.component) {
       return currentOption.component;
     }
     return null;
