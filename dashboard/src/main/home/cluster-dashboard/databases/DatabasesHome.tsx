@@ -32,7 +32,7 @@ const DatabasesHome = () => {
             component: (
               <StatusPage
                 project_id={currentProject.id}
-                filter={[]}
+                filter={["rds"]}
                 setInfraStatus={() => {}}
               />
             ),
