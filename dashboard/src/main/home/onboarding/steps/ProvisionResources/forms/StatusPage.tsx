@@ -1,3 +1,4 @@
+import Loading from "components/Loading";
 import ProvisionerStatus, {
   TFModule,
   TFResource,
@@ -6,11 +7,13 @@ import ProvisionerStatus, {
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import api from "shared/api";
 import { NewWebsocketOptions, useWebsockets } from "shared/hooks/useWebsockets";
+import styled from "styled-components";
 
 type Props = {
   setInfraStatus: (status: { hasError: boolean; description?: string }) => void;
   project_id: number;
   filter: string[];
+  notFoundText?: string;
 };
 
 type Infra = {
@@ -53,8 +56,10 @@ export const StatusPage = ({
   filter: selectedFilters,
   project_id,
   setInfraStatus,
+  notFoundText = "We couldn't find any infra being provisioned.",
 }: Props) => {
   const isMounted = useRef(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const {
     newWebsocket,
@@ -396,7 +401,9 @@ export const StatusPage = ({
   }, []);
 
   useEffect(() => {
-    getInfras();
+    getInfras().then(() => {
+      setIsLoading(false);
+    });
     return () => {
       closeAllWebsockets();
     };
@@ -859,3 +866,24 @@ const useModuleChecker = (modules: TFModule[]) => {
     moduleStatuses: moduleStatusesArray,
   };
 };
+
+const Placeholder = styled.div`
+  padding: 30px;
+  margin-top: 35px;
+  padding-bottom: 40px;
+  font-size: 13px;
+  color: #ffffff44;
+  min-height: 400px;
+  height: 50vh;
+  background: #ffffff11;
+  border-radius: 8px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  > i {
+    font-size: 18px;
+    margin-right: 8px;
+  }
+`;
