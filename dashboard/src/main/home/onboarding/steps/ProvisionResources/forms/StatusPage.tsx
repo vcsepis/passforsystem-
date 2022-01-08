@@ -1,3 +1,4 @@
+import Loading from "components/Loading";
 import ProvisionerStatus, {
   TFModule,
   TFResource,
@@ -6,11 +7,13 @@ import ProvisionerStatus, {
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import api from "shared/api";
 import { NewWebsocketOptions, useWebsockets } from "shared/hooks/useWebsockets";
+import styled from "styled-components";
 
 type Props = {
   setInfraStatus: (status: { hasError: boolean; description?: string }) => void;
   project_id: number;
   filter: string[];
+  notFoundText?: string;
 };
 
 type Infra = {
@@ -53,7 +56,11 @@ export const StatusPage = ({
   filter: selectedFilters,
   project_id,
   setInfraStatus,
+  notFoundText = "We couldn't find any infra being provisioned.",
 }: Props) => {
+  const isMounted = useRef(false);
+  const [isLoading, setIsLoading] = useState(true);
+
   const {
     newWebsocket,
     openWebsocket,
@@ -144,7 +151,10 @@ export const StatusPage = ({
     } catch (error) {}
   };
 
-  const getDesiredState = async (infra_id: number) => {
+  const getDesiredState = async (infra_id: number, counter: number = 0) => {
+    if (!isMounted.current) {
+      return;
+    }
     try {
       const desired = await api
         .getInfraDesired("<token>", {}, { project_id, infra_id })
@@ -158,9 +168,24 @@ export const StatusPage = ({
       connectToLiveUpdateModule(infra_id);
     } catch (error) {
       console.error(error);
-      setTimeout(() => {
-        getDesiredState(infra_id);
-      }, 500);
+      const MIN_TIMEOUT = 500;
+      const MAX_TIMEOUT = 2000;
+
+      let timeout = counter * 500;
+
+      if (timeout < MIN_TIMEOUT) {
+        timeout = MIN_TIMEOUT;
+      }
+
+      if (timeout > MAX_TIMEOUT) {
+        timeout = MAX_TIMEOUT;
+      }
+
+      if (isMounted.current) {
+        setTimeout(() => {
+          getDesiredState(infra_id, counter + 1);
+        }, timeout);
+      }
     }
   };
 
@@ -267,7 +292,16 @@ export const StatusPage = ({
   };
 
   useEffect(() => {
-    getInfras();
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    getInfras().then(() => {
+      setIsLoading(false);
+    });
     return () => {
       closeAllWebsockets();
     };
@@ -318,6 +352,23 @@ export const StatusPage = ({
   const sortedModules = tfModules.sort((a, b) =>
     b.id < a.id ? -1 : b.id > a.id ? 1 : 0
   );
+
+  if (isLoading) {
+    return (
+      <Placeholder>
+        <Loading />
+      </Placeholder>
+    );
+  }
+
+  if (!isLoading) {
+    return (
+      <Placeholder>
+        <i className="material-icons">search</i>
+        {notFoundText}
+      </Placeholder>
+    );
+  }
 
   return <ProvisionerStatus modules={sortedModules} />;
 };
@@ -639,3 +690,24 @@ const useModuleChecker = (modules: TFModule[]) => {
     moduleStatuses: moduleStatusesArray,
   };
 };
+
+const Placeholder = styled.div`
+  padding: 30px;
+  margin-top: 35px;
+  padding-bottom: 40px;
+  font-size: 13px;
+  color: #ffffff44;
+  min-height: 400px;
+  height: 50vh;
+  background: #ffffff11;
+  border-radius: 8px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  > i {
+    font-size: 18px;
+    margin-right: 8px;
+  }
+`;

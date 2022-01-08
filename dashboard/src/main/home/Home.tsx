@@ -27,7 +27,6 @@ import discordLogo from "../../assets/discord.svg";
 import Onboarding from "./onboarding/Onboarding";
 import ModalHandler from "./ModalHandler";
 import { NewProjectFC } from "./new-project/NewProject";
-import { BuildpackSelection } from "components/repo-selector/ActionDetails";
 
 // Guarded components
 const GuardedProjectSettings = fakeGuardedRoute("settings", "", [
@@ -136,8 +135,25 @@ class Home extends Component<PropsType, StateType> {
       .catch(console.log);
   };
 
+  checkIfCanCreateProject = () => {
+    api
+      .getCanCreateProject("<token>", {}, {})
+      .then((res) => {
+        if (res.status === 403) {
+          this.context.setCanCreateProject(false);
+          return;
+        }
+        this.context.setCanCreateProject(true);
+      })
+      .catch((err) => {
+        this.context.setCanCreateProject(false);
+        console.error(err);
+      });
+  };
+
   componentDidMount() {
     this.checkOnboarding();
+    this.checkIfCanCreateProject();
     let { match } = this.props;
 
     let { user } = this.context;
@@ -174,6 +190,10 @@ class Home extends Component<PropsType, StateType> {
     ) {
       this.context.setCurrentModal("RedirectToOnboardingModal");
     }
+  }
+
+  componentWillUnmount(): void {
+    this.context.setCanCreateProject(false);
   }
 
   async checkIfProjectHasBilling(projectId: number) {
@@ -432,6 +452,7 @@ class Home extends Component<PropsType, StateType> {
                 "/applications",
                 "/jobs",
                 "/env-groups",
+                "/databases",
               ]}
               render={() => {
                 let { currentCluster } = this.context;
