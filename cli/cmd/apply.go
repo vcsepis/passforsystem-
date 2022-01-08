@@ -301,12 +301,12 @@ func (d *Driver) applyApplication(resource *models.Resource, client *api.Client,
 		if err != nil {
 			return nil, err
 		}
-	}
+	} else {
+		resource, err = d.updateApplication(resource, client, sharedOpts, appConfig)
 
-	resource, err = d.updateApplication(resource, client, sharedOpts, appConfig)
-
-	if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if err = d.assignOutput(resource, client); err != nil {
@@ -371,7 +371,10 @@ func (d *Driver) updateApplication(resource *models.Resource, client *api.Client
 		return nil, err
 	}
 
-	buildEnv, err := updateAgent.GetBuildEnv()
+	buildEnv, err := updateAgent.GetBuildEnv(&deploy.GetBuildEnvOpts{
+		UseNewConfig: true,
+		NewConfig:    appConf.Values,
+	})
 
 	if err != nil {
 		return nil, err

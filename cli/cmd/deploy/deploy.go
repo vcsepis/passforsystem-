@@ -140,6 +140,11 @@ func NewDeployAgent(client *client.Client, app string, opts *DeployOpts) (*Deplo
 	return deployAgent, nil
 }
 
+type GetBuildEnvOpts struct {
+	UseNewConfig bool
+	NewConfig    map[string]interface{}
+}
+
 // GetBuildEnv retrieves the build env from the release config and returns it
 func (d *DeployAgent) GetBuildEnv() (map[string]string, error) {
 	return GetEnvForRelease(d.client, d.release.Config, d.opts.ProjectID, d.opts.ClusterID, d.opts.Namespace)
@@ -248,20 +253,22 @@ func (d *DeployAgent) Build() error {
 
 	err = d.pullCurrentReleaseImage()
 
-	buildAgent := &BuildAgent{
-		SharedOpts:  d.opts.SharedOpts,
-		client:      d.client,
-		imageRepo:   d.imageRepo,
-		env:         d.env,
-		imageExists: d.imageExists,
-	}
-
 	// if image is not found, don't return an error
 	if err != nil && err != docker.PullImageErrNotFound {
 		return err
 	} else if err != nil && err == docker.PullImageErrNotFound {
 		fmt.Println("could not find image, moving to build step")
 		d.imageExists = false
+	} else if err == nil {
+		d.imageExists = true
+	}
+
+	buildAgent := &BuildAgent{
+		SharedOpts:  d.opts.SharedOpts,
+		client:      d.client,
+		imageRepo:   d.imageRepo,
+		env:         d.env,
+		imageExists: d.imageExists,
 	}
 
 	if d.opts.Method == DeployBuildTypeDocker {
