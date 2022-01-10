@@ -481,24 +481,13 @@ export const StatusPage = ({
     b.id < a.id ? -1 : b.id > a.id ? 1 : 0
   );
 
-  if (isLoading) {
-    return (
-      <Placeholder>
-        <Loading />
-      </Placeholder>
-    );
-  }
-
-  if (!isLoading) {
-    return (
-      <Placeholder>
-        <i className="material-icons">search</i>
-        {notFoundText}
-      </Placeholder>
-    );
-  }
-
-  return <ProvisionerStatus modules={sortedModules} />;
+  return (
+    <ProvisionerStatus
+      modules={sortedModules}
+      onRetry={handleRetryInfra}
+      onDelete={handleDeleteInfra}
+    />
+  );
 };
 
 type TFModulesState = {

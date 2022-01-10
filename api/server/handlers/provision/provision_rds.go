@@ -39,10 +39,9 @@ func NewProvisionRDSHandler(
 func (c *ProvisionRDSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	user, _ := r.Context().Value(types.UserScope).(*models.User)
 	proj, _ := r.Context().Value(types.ProjectScope).(*models.Project)
+	cluster, _ := r.Context().Value(types.ClusterScope).(*models.Cluster)
 
-	request := &types.CreateRDSInfraRequest{
-		ProjectID: proj.ID,
-	}
+	request := &types.CreateRDSInfraRequest{}
 
 	if ok := c.DecodeAndValidate(w, r, request); !ok {
 		return
@@ -65,19 +64,8 @@ func (c *ProvisionRDSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 
 	dbVersion := types.EngineVersion(request.DBEngineVersion)
 
-	// given a cluster_id, fetch the cluster detail to get the infra_id
-	cluster, err := c.Repo().Cluster().ReadCluster(proj.ID, request.ClusterID)
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			c.HandleAPIError(w, r, apierrors.NewErrForbidden(err))
-		} else {
-			c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
-		}
-
-		return
-	}
-
 	clusterInfra, err := c.Repo().Infra().ReadInfra(proj.ID, cluster.InfraID)
+
 	if err != nil {
 		c.HandleAPIError(w, r, apierrors.NewErrPassThroughToClient(
 			fmt.Errorf("empty cluster infra, projectID: %d, infraID: %d", proj.ID, cluster.InfraID),
@@ -93,7 +81,12 @@ func (c *ProvisionRDSHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	lastApplied, err := json.Marshal(request)
+	lastAppliedData := &types.RDSInfraLastApplied{
+		CreateRDSInfraRequest: request,
+		ClusterID:             cluster.ID,
+	}
+
+	lastApplied, err := json.Marshal(lastAppliedData)
 	if err != nil {
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
 		return

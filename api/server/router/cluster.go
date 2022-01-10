@@ -5,8 +5,10 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/porter-dev/porter/api/server/handlers/cluster"
+	"github.com/porter-dev/porter/api/server/handlers/database"
 	"github.com/porter-dev/porter/api/server/handlers/environment"
 	"github.com/porter-dev/porter/api/server/handlers/kube_events"
+	"github.com/porter-dev/porter/api/server/handlers/provision"
 	"github.com/porter-dev/porter/api/server/shared"
 	"github.com/porter-dev/porter/api/server/shared/config"
 	"github.com/porter-dev/porter/api/types"
@@ -256,6 +258,63 @@ func getClusterRoutes(
 	routes = append(routes, &Route{
 		Endpoint: getEndpoint,
 		Handler:  getHandler,
+		Router:   r,
+	})
+
+	// POST /api/projects/{project_id}/clusters/{cluster_id}/provision/rds/ -> provision.NewProvisionRDSHandler
+	provisionRDSEndpoint := factory.NewAPIEndpoint(
+		&types.APIRequestMetadata{
+			Verb:   types.APIVerbCreate,
+			Method: types.HTTPVerbPost,
+			Path: &types.Path{
+				Parent:       basePath,
+				RelativePath: relPath + "/provision/rds",
+			},
+			Scopes: []types.PermissionScope{
+				types.UserScope,
+				types.ProjectScope,
+				types.ClusterScope,
+			},
+		},
+	)
+
+	provisionRDSHandler := provision.NewProvisionRDSHandler(
+		config,
+		factory.GetDecoderValidator(),
+		factory.GetResultWriter(),
+	)
+
+	routes = append(routes, &Route{
+		Endpoint: provisionRDSEndpoint,
+		Handler:  provisionRDSHandler,
+		Router:   r,
+	})
+
+	// GET /api/projects/{project_id}/clusters/{cluster_id}/databases -> database.NewDatabaseListHandler
+	listDatabaseEndpoint := factory.NewAPIEndpoint(
+		&types.APIRequestMetadata{
+			Verb:   types.APIVerbList,
+			Method: types.HTTPVerbGet,
+			Path: &types.Path{
+				Parent:       basePath,
+				RelativePath: relPath + "/databases",
+			},
+			Scopes: []types.PermissionScope{
+				types.UserScope,
+				types.ProjectScope,
+				types.ClusterScope,
+			},
+		},
+	)
+
+	listDatabaseHandler := database.NewDatabaseListHandler(
+		config,
+		factory.GetResultWriter(),
+	)
+
+	routes = append(routes, &Route{
+		Endpoint: listDatabaseEndpoint,
+		Handler:  listDatabaseHandler,
 		Router:   r,
 	})
 

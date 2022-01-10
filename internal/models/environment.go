@@ -34,7 +34,7 @@ type Deployment struct {
 
 	EnvironmentID  uint
 	Namespace      string
-	Status         string
+	Status         types.DeploymentStatus
 	Subdomain      string
 	PullRequestID  uint
 	GHDeploymentID int64
@@ -55,6 +55,8 @@ func (d *Deployment) ToDeploymentType() *types.Deployment {
 	}
 
 	return &types.Deployment{
+		CreatedAt:      d.CreatedAt,
+		UpdatedAt:      d.UpdatedAt,
 		ID:             d.Model.ID,
 		EnvironmentID:  d.EnvironmentID,
 		Namespace:      d.Namespace,
@@ -70,7 +72,7 @@ type DeploymentWithEnvironment struct {
 
 	Environment    *Environment
 	Namespace      string
-	Status         string
+	Status         types.DeploymentStatus
 	Subdomain      string
 	PullRequestID  uint
 	GHDeploymentID int64
@@ -91,6 +93,8 @@ func (d *DeploymentWithEnvironment) ToDeploymentType() *types.Deployment {
 	}
 
 	return &types.Deployment{
+		CreatedAt:         d.CreatedAt,
+		UpdatedAt:         d.UpdatedAt,
 		ID:                d.Model.ID,
 		EnvironmentID:     d.Environment.ID,
 		GitInstallationID: d.Environment.GitInstallationID,

@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 type Environment struct {
 	ID                uint   `json:"id"`
 	ProjectID         uint   `json:"project_id"`
@@ -23,16 +25,27 @@ type GitHubMetadata struct {
 	CommitSHA    string `json:"gh_commit_sha"`
 }
 
+type DeploymentStatus string
+
+const (
+	DeploymentStatusCreated  DeploymentStatus = "created"
+	DeploymentStatusCreating DeploymentStatus = "creating"
+	DeploymentStatusInactive DeploymentStatus = "inactive"
+	DeploymentStatusFailed   DeploymentStatus = "failed"
+)
+
 type Deployment struct {
 	*GitHubMetadata
 
-	ID                uint   `json:"id"`
-	GitInstallationID uint   `json:"git_installation_id"`
-	EnvironmentID     uint   `json:"environment_id"`
-	Namespace         string `json:"namespace"`
-	Status            string `json:"status"`
-	Subdomain         string `json:"subdomain"`
-	PullRequestID     uint   `json:"pull_request_id"`
+	ID                uint             `json:"id"`
+	CreatedAt         time.Time        `json:"created_at"`
+	UpdatedAt         time.Time        `json:"updated_at"`
+	GitInstallationID uint             `json:"git_installation_id"`
+	EnvironmentID     uint             `json:"environment_id"`
+	Namespace         string           `json:"namespace"`
+	Status            DeploymentStatus `json:"status"`
+	Subdomain         string           `json:"subdomain"`
+	PullRequestID     uint             `json:"pull_request_id"`
 }
 
 type CreateGHDeploymentRequest struct {
@@ -57,6 +70,17 @@ type UpdateDeploymentRequest struct {
 	*CreateGHDeploymentRequest
 
 	CommitSHA string `json:"commit_sha" form:"required"`
+	Namespace string `json:"namespace" form:"required"`
+}
+
+type ListDeploymentRequest struct {
+	Status []string `schema:"status"`
+}
+
+type UpdateDeploymentStatusRequest struct {
+	*CreateGHDeploymentRequest
+
+	Status    string `json:"status" form:"required,oneof=created creating inactive failed"`
 	Namespace string `json:"namespace" form:"required"`
 }
 

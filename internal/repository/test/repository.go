@@ -38,6 +38,7 @@ type TestRepository struct {
 	ceToken                   repository.CredentialsExchangeTokenRepository
 	buildConfig               repository.BuildConfigRepository
 	allowlist                 repository.AllowlistRepository
+	database                  repository.DatabaseRepository
 }
 
 func (t *TestRepository) User() repository.UserRepository {
@@ -172,6 +173,10 @@ func (t *TestRepository) Allowlist() repository.AllowlistRepository {
 	return t.allowlist
 }
 
+func (t *TestRepository) Database() repository.DatabaseRepository {
+	return t.database
+}
+
 // NewRepository returns a Repository which persists users in memory
 // and accepts a parameter that can trigger read/write errors
 func NewRepository(canQuery bool, failingMethods ...string) repository.Repository {
@@ -209,5 +214,6 @@ func NewRepository(canQuery bool, failingMethods ...string) repository.Repositor
 		ceToken:                   NewCredentialsExchangeTokenRepository(canQuery),
 		buildConfig:               NewBuildConfigRepository(canQuery),
 		allowlist:                 NewAllowlistRepository(canQuery),
+		database:                  NewDatabaseRepository(),
 	}
 }
