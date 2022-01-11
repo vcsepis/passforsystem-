@@ -172,7 +172,7 @@ export default class Logs extends Component<PropsType, StateType> {
       );
     }
 
-    this.ws.onopen = () => { };
+    this.ws.onopen = () => {};
 
     this.ws.onmessage = (evt: MessageEvent) => {
       let ansiLog = Anser.ansiToJson(evt.data);
@@ -202,9 +202,9 @@ export default class Logs extends Component<PropsType, StateType> {
       );
     };
 
-    this.ws.onerror = (err: ErrorEvent) => { };
+    this.ws.onerror = (err: ErrorEvent) => {};
 
-    this.ws.onclose = () => { };
+    this.ws.onclose = () => {};
   };
 
   refreshLogs = () => {
@@ -365,18 +365,40 @@ export default class Logs extends Component<PropsType, StateType> {
               <input
                 type="checkbox"
                 checked={this.state.scroll}
-                onChange={() => { }}
+                onChange={() => {}}
               />
               Scroll to Bottom
             </Scroll>
-            <Refresh
-              onClick={() => {
-                this.refreshLogs();
-              }}
-            >
-              <i className="material-icons">autorenew</i>
-              Refresh
-            </Refresh>
+            <RightOptionsWrapper>
+              {this.state.logs?.length > 0 && (
+                <Scroll
+                  margin={"0 10px 0 0"}
+                  onClick={() => {
+                    this.setState(
+                      { getPreviousLogs: !this.state.getPreviousLogs },
+                      () => {
+                        this.refreshLogs();
+                      }
+                    );
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={this.state.getPreviousLogs}
+                    onChange={() => {}}
+                  />
+                  Get previous logs
+                </Scroll>
+              )}
+              <Refresh
+                onClick={() => {
+                  this.refreshLogs();
+                }}
+              >
+                <i className="material-icons">autorenew</i>
+                Refresh
+              </Refresh>
+            </RightOptionsWrapper>
           </Options>
         </LogStreamAlt>
       );
@@ -409,18 +431,40 @@ export default class Logs extends Component<PropsType, StateType> {
             <input
               type="checkbox"
               checked={this.state.scroll}
-              onChange={() => { }}
+              onChange={() => {}}
             />
             Scroll to Bottom
           </Scroll>
-          <Refresh
-            onClick={() => {
-              this.refreshLogs();
-            }}
-          >
-            <i className="material-icons">autorenew</i>
-            Refresh
-          </Refresh>
+          <RightOptionsWrapper>
+            {this.state.logs?.length > 0 && (
+              <Scroll
+                margin={"0 10px 0 0"}
+                onClick={() => {
+                  this.setState(
+                    { getPreviousLogs: !this.state.getPreviousLogs },
+                    () => {
+                      this.refreshLogs();
+                    }
+                  );
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={this.state.getPreviousLogs}
+                  onChange={() => {}}
+                />
+                Get previous logs
+              </Scroll>
+            )}
+            <Refresh
+              onClick={() => {
+                this.refreshLogs();
+              }}
+            >
+              <i className="material-icons">autorenew</i>
+              Refresh
+            </Refresh>
+          </RightOptionsWrapper>
         </Options>
       </LogStream>
     );
@@ -449,6 +493,7 @@ const Scroll = styled.div`
   cursor: pointer;
   width: 145px;
   height: 100%;
+  margin: ${(props: { margin?: string }) => props.margin || "unset"};
 
   :hover {
     background: #2468d6;
@@ -568,4 +613,8 @@ const LogSpan = styled.span`
     props.ansi?.fg ? `rgb(${props.ansi?.fg})` : "white"};
   background-color: ${(props: { ansi: Anser.AnserJsonEntry }) =>
     props.ansi?.bg ? `rgb(${props.ansi?.bg})` : "transparent"};
+`;
+
+const RightOptionsWrapper = styled.div`
+  display: flex;
 `;
