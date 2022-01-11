@@ -172,7 +172,7 @@ export default class Logs extends Component<PropsType, StateType> {
       );
     }
 
-    this.ws.onopen = () => { };
+    this.ws.onopen = () => {};
 
     this.ws.onmessage = (evt: MessageEvent) => {
       let ansiLog = Anser.ansiToJson(evt.data);
@@ -202,9 +202,9 @@ export default class Logs extends Component<PropsType, StateType> {
       );
     };
 
-    this.ws.onerror = (err: ErrorEvent) => { };
+    this.ws.onerror = (err: ErrorEvent) => {};
 
-    this.ws.onclose = () => { };
+    this.ws.onclose = () => {};
   };
 
   refreshLogs = () => {
@@ -365,7 +365,7 @@ export default class Logs extends Component<PropsType, StateType> {
               <input
                 type="checkbox"
                 checked={this.state.scroll}
-                onChange={() => { }}
+                onChange={() => {}}
               />
               Scroll to Bottom
             </Scroll>
@@ -409,7 +409,7 @@ export default class Logs extends Component<PropsType, StateType> {
             <input
               type="checkbox"
               checked={this.state.scroll}
-              onChange={() => { }}
+              onChange={() => {}}
             />
             Scroll to Bottom
           </Scroll>
