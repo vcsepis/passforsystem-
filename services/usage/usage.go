@@ -196,6 +196,7 @@ type DomainTrackerResponse struct {
 	Cluster         models.Cluster
 	ClusterEndpoint string
 	Domains         []string
+	ActiveDomains   []string
 }
 
 func (u *UsageTracker) GetDomainUsage() (map[uint]*DomainTrackerResponse, error) {
@@ -239,11 +240,13 @@ func (u *UsageTracker) GetDomainUsage() (map[uint]*DomainTrackerResponse, error)
 
 			if !found {
 				fmt.Printf("Project %d, cluster %d: domain not found\n", project.ID, cluster.ID)
+				continue
 			} else if err != nil {
 				fmt.Printf("Project %d, cluster %d: error getting nginx ingress: %v\n", project.ID, cluster.ID, err)
 				continue
 			} else if domain == "" {
 				fmt.Printf("Project %d, cluster %d: domain is empty\n", project.ID, cluster.ID)
+				continue
 			}
 
 			// find all domains attached to the cluster endpoint
@@ -254,10 +257,13 @@ func (u *UsageTracker) GetDomainUsage() (map[uint]*DomainTrackerResponse, error)
 				continue
 			}
 
-			dnsRecordStrings := make(map[string]string, 0)
+			dnsRecordLookup := make(map[string]string, 0)
+			allDomains := make([]string, 0)
+			activeDomains := make([]string, 0)
 
 			for _, dnsRecord := range dnsRecords {
-				dnsRecordStrings[dnsRecord.Hostname] = dnsRecord.Hostname
+				dnsRecordLookup[dnsRecord.Hostname] = dnsRecord.Hostname
+				allDomains = append(allDomains, dnsRecord.Hostname)
 			}
 
 			// use the clientset to list ingresses from the target cluster
@@ -274,10 +280,8 @@ func (u *UsageTracker) GetDomainUsage() (map[uint]*DomainTrackerResponse, error)
 			// iterate through ingresses
 			for _, ingress := range ingressList.Items {
 				for _, rule := range ingress.Spec.Rules {
-					fmt.Println("checking:", rule.Host)
-
-					if _, exists := dnsRecordStrings[rule.Host]; exists {
-						fmt.Println("GOT A MATCH ON", rule.Host)
+					if _, exists := dnsRecordLookup[rule.Host]; exists {
+						activeDomains = append(activeDomains, rule.Host)
 					}
 				}
 			}
@@ -286,7 +290,8 @@ func (u *UsageTracker) GetDomainUsage() (map[uint]*DomainTrackerResponse, error)
 			res[cluster.ID] = &DomainTrackerResponse{
 				Cluster:         *cluster,
 				ClusterEndpoint: domain,
-				// Domains:         dnsRecordStrings,
+				Domains:         allDomains,
+				ActiveDomains:   activeDomains,
 			}
 			mu.Unlock()
 		}
