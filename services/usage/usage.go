@@ -192,6 +192,7 @@ func (u *UsageTracker) GetProjectUsage() (map[uint]*UsageTrackerResponse, error)
 type DomainTrackerResponse struct {
 	Cluster         models.Cluster
 	ClusterEndpoint string
+	Domains         []string
 }
 
 func (u *UsageTracker) GetDomainUsage() (map[uint]*DomainTrackerResponse, error) {
@@ -242,10 +243,25 @@ func (u *UsageTracker) GetDomainUsage() (map[uint]*DomainTrackerResponse, error)
 				fmt.Printf("Project %d, cluster %d: domain is empty\n", project.ID, cluster.ID)
 			}
 
+			// find all domains attached to the cluster endpoint
+			dnsRecords := []*models.DNSRecord{}
+
+			if err := u.db.Where("endpoint = ?", domain).Find(&dnsRecords).Error; err != nil {
+				fmt.Printf("Project %d, cluster %d: error getting DNS records: %v\n", project.ID, cluster.ID, err)
+				continue
+			}
+
+			dnsRecordStrings := make([]string, 0)
+
+			for _, dnsRecord := range dnsRecords {
+				dnsRecordStrings = append(dnsRecordStrings, dnsRecord.Hostname)
+			}
+
 			mu.Lock()
 			res[cluster.ID] = &DomainTrackerResponse{
 				Cluster:         *cluster,
 				ClusterEndpoint: domain,
+				Domains:         dnsRecordStrings,
 			}
 			mu.Unlock()
 		}
