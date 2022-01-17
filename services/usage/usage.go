@@ -5,6 +5,7 @@ package usage
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -193,10 +194,12 @@ func (u *UsageTracker) GetProjectUsage() (map[uint]*UsageTrackerResponse, error)
 }
 
 type DomainTrackerResponse struct {
-	Cluster         models.Cluster
-	ClusterEndpoint string
-	Domains         []string
-	ActiveDomains   []string
+	Cluster             models.Cluster
+	ClusterEndpoint     string
+	PorterDomains       []string
+	ActivePorterDomains []string
+	CustomDomains       []string
+	ActiveCustomDomains []string
 }
 
 func (u *UsageTracker) GetDomainUsage() (map[uint]*DomainTrackerResponse, error) {
@@ -258,12 +261,13 @@ func (u *UsageTracker) GetDomainUsage() (map[uint]*DomainTrackerResponse, error)
 			}
 
 			dnsRecordLookup := make(map[string]string, 0)
-			allDomains := make([]string, 0)
-			activeDomains := make([]string, 0)
+			allPrtDomains := make([]string, 0)
+			allCustomDomains := make([]string, 0)
+			activePrtDomains := make([]string, 0)
 
 			for _, dnsRecord := range dnsRecords {
 				dnsRecordLookup[dnsRecord.Hostname] = dnsRecord.Hostname
-				allDomains = append(allDomains, dnsRecord.Hostname)
+				allPrtDomains = append(allPrtDomains, dnsRecord.Hostname)
 			}
 
 			// use the clientset to list ingresses from the target cluster
@@ -281,17 +285,24 @@ func (u *UsageTracker) GetDomainUsage() (map[uint]*DomainTrackerResponse, error)
 			for _, ingress := range ingressList.Items {
 				for _, rule := range ingress.Spec.Rules {
 					if _, exists := dnsRecordLookup[rule.Host]; exists {
-						activeDomains = append(activeDomains, rule.Host)
+						activePrtDomains = append(activePrtDomains, rule.Host)
+					} else if !strings.Contains(rule.Host, "porter.run") {
+						allCustomDomains = append(allCustomDomains, rule.Host)
 					}
 				}
 			}
 
+			fmt.Println("all porter domains:", allPrtDomains)
+			fmt.Println("active porter domains:", activePrtDomains)
+			fmt.Println("custom porter domains:", allCustomDomains)
+
 			mu.Lock()
 			res[cluster.ID] = &DomainTrackerResponse{
-				Cluster:         *cluster,
-				ClusterEndpoint: domain,
-				Domains:         allDomains,
-				ActiveDomains:   activeDomains,
+				Cluster:             *cluster,
+				ClusterEndpoint:     domain,
+				PorterDomains:       allPrtDomains,
+				ActivePorterDomains: activePrtDomains,
+				CustomDomains:       allCustomDomains,
 			}
 			mu.Unlock()
 		}
