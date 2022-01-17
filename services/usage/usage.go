@@ -11,6 +11,8 @@ import (
 	"github.com/porter-dev/porter/api/types"
 	"github.com/porter-dev/porter/ee/integrations/vault"
 	"github.com/porter-dev/porter/internal/adapter"
+	"github.com/porter-dev/porter/internal/kubernetes"
+	"github.com/porter-dev/porter/internal/kubernetes/domain"
 	"github.com/porter-dev/porter/internal/models"
 	"github.com/porter-dev/porter/internal/oauth"
 	"github.com/porter-dev/porter/internal/repository"
@@ -163,6 +165,90 @@ func (u *UsageTracker) GetProjectUsage() (map[uint]*UsageTrackerResponse, error)
 			AdminEmails:   adminEmails,
 		}
 		mu.Unlock()
+
+		return
+	}
+
+	// iterate (count / stepSize) + 1 times using Limit and Offset
+	for i := 0; i < (int(count)/stepSize)+1; i++ {
+		projects := []*models.Project{}
+
+		if err := u.db.Order("id asc").Offset(i * stepSize).Limit(stepSize).Find(&projects).Error; err != nil {
+			return nil, err
+		}
+
+		// go through each project
+		for _, project := range projects {
+			wg.Add(1)
+			go worker(project)
+		}
+
+		wg.Wait()
+	}
+
+	return res, nil
+}
+
+type DomainTrackerResponse struct {
+	Cluster         models.Cluster
+	ClusterEndpoint string
+}
+
+func (u *UsageTracker) GetDomainUsage() (map[uint]*DomainTrackerResponse, error) {
+	res := make(map[uint]*DomainTrackerResponse)
+
+	// get the count of the projects
+	var count int64
+
+	if err := u.db.Model(&models.Project{}).Count(&count).Error; err != nil {
+		return nil, err
+	}
+
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+
+	worker := func(project *models.Project) {
+		defer wg.Done()
+
+		clusters, err := u.repo.Cluster().ListClustersByProjectID(project.ID)
+
+		if err != nil {
+			fmt.Printf("Project %d: error getting clusters: %v\n", project.ID, err)
+			return
+		}
+
+		for _, cluster := range clusters {
+			ooc := &kubernetes.OutOfClusterConfig{
+				Cluster:           cluster,
+				Repo:              u.repo,
+				DigitalOceanOAuth: u.doConf,
+			}
+
+			agent, err := kubernetes.GetAgentOutOfClusterConfig(ooc)
+
+			if err != nil {
+				fmt.Printf("Project %d, cluster %d: error getting agent: %v\n", project.ID, cluster.ID, err)
+				continue
+			}
+
+			domain, found, err := domain.GetNGINXIngressServiceIP(agent.Clientset)
+
+			if !found {
+				fmt.Printf("Project %d, cluster %d: domain not found\n", project.ID, cluster.ID)
+			} else if err != nil {
+				fmt.Printf("Project %d, cluster %d: error getting nginx ingress: %v\n", project.ID, cluster.ID, err)
+				continue
+			} else if domain == "" {
+				fmt.Printf("Project %d, cluster %d: domain is empty\n", project.ID, cluster.ID)
+			}
+
+			mu.Lock()
+			res[cluster.ID] = &DomainTrackerResponse{
+				Cluster:         *cluster,
+				ClusterEndpoint: domain,
+			}
+			mu.Unlock()
+		}
 
 		return
 	}
