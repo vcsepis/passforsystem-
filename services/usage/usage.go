@@ -3,6 +3,7 @@
 package usage
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -19,6 +20,8 @@ import (
 	"github.com/porter-dev/porter/internal/usage"
 	"golang.org/x/oauth2"
 	"gorm.io/gorm"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/porter-dev/porter/internal/repository/credentials"
 	rgorm "github.com/porter-dev/porter/internal/repository/gorm"
@@ -251,17 +254,39 @@ func (u *UsageTracker) GetDomainUsage() (map[uint]*DomainTrackerResponse, error)
 				continue
 			}
 
-			dnsRecordStrings := make([]string, 0)
+			dnsRecordStrings := make(map[string]string, 0)
 
 			for _, dnsRecord := range dnsRecords {
-				dnsRecordStrings = append(dnsRecordStrings, dnsRecord.Hostname)
+				dnsRecordStrings[dnsRecord.Hostname] = dnsRecord.Hostname
+			}
+
+			// use the clientset to list ingresses from the target cluster
+			ingressList, err := agent.Clientset.ExtensionsV1beta1().Ingresses("").List(
+				context.TODO(),
+				metav1.ListOptions{},
+			)
+
+			if err != nil {
+				fmt.Printf("Project %d, cluster %d: error listing ingresses: %v\n", project.ID, cluster.ID, err)
+				continue
+			}
+
+			// iterate through ingresses
+			for _, ingress := range ingressList.Items {
+				for _, rule := range ingress.Spec.Rules {
+					fmt.Println("checking:", rule.Host)
+
+					if _, exists := dnsRecordStrings[rule.Host]; exists {
+						fmt.Println("GOT A MATCH ON", rule.Host)
+					}
+				}
 			}
 
 			mu.Lock()
 			res[cluster.ID] = &DomainTrackerResponse{
 				Cluster:         *cluster,
 				ClusterEndpoint: domain,
-				Domains:         dnsRecordStrings,
+				// Domains:         dnsRecordStrings,
 			}
 			mu.Unlock()
 		}
