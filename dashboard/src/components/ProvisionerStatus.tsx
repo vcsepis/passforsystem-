@@ -1,38 +1,34 @@
 import { Steps } from "main/home/onboarding/types";
-import React, { useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { integrationList } from "shared/common";
 
 import loading from "assets/loading.gif";
 
 import styled, { keyframes } from "styled-components";
 import { readableDate } from "shared/string_utils";
+import {
+  Infrastructure,
+  KindMap,
+  Operation,
+  OperationStatus,
+  OperationType,
+  TFState,
+} from "shared/types";
+import api from "shared/api";
+import Placeholder from "./Placeholder";
+import Loading from "./Loading";
+import ExpandedOperation from "main/home/infrastructure/components/ExpandedOperation";
+import { Context } from "shared/Context";
+import { useWebsockets } from "shared/hooks/useWebsockets";
+import Description from "./Description";
+import Heading from "./form-components/Heading";
+import PorterFormWrapper from "./porter-form/PorterFormWrapper";
+import SaveButton from "./SaveButton";
 
 type Props = {
-  modules: TFModule[];
+  infras: Infrastructure[];
+  project_id: number;
 };
-
-export interface TFModule {
-  id: number;
-  kind: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
-  global_errors?: TFResourceError[];
-  got_desired: boolean;
-  // optional resources, if not created
-  resources?: TFResource[];
-}
-
-export interface TFResourceError {
-  errored_out?: boolean;
-  error_context?: string;
-}
-
-export interface TFResource {
-  addr: string;
-  provisioned: boolean;
-  errored: TFResourceError;
-}
 
 const nameMap: { [key: string]: string } = {
   eks: "Elastic Kubernetes Service (EKS)",
@@ -44,118 +40,329 @@ const nameMap: { [key: string]: string } = {
   rds: "Amazon Relational Database (RDS)",
 };
 
-const ProvisionerStatus: React.FC<Props> = ({ modules }) => {
-  const renderStatus = (status: string) => {
-    if (status === "successful") {
-      return (
-        <StatusIcon successful={true}>
-          <i className="material-icons">done</i>
-        </StatusIcon>
-      );
-    } else if (status === "loading") {
-      return (
-        <StatusIcon>
-          <LoadingGif src={loading} />
-        </StatusIcon>
-      );
-    } else if (status === "error") {
-      return (
-        <StatusIcon>
-          <i className="material-icons">error_outline</i>
-        </StatusIcon>
-      );
+const ProvisionerStatus: React.FC<Props> = ({ infras, project_id }) => {
+  const renderV1Infra = (infra: Infrastructure) => {
+    let errors: string[] = [];
+
+    if (infra.status == "destroyed" || infra.status == "deleted") {
+      errors.push("This infrastructure was destroyed.");
     }
+
+    let error = null;
+
+    if (errors.length > 0) {
+      error = errors.map((error, index) => {
+        return <ExpandedError key={index}>{error}</ExpandedError>;
+      });
+    }
+
+    return (
+      <StyledInfraObject key={infra.id}>
+        <InfraHeader>
+          <Flex>
+            {integrationList[infra.kind] && (
+              <Icon src={integrationList[infra.kind].icon} />
+            )}
+            {KindMap[infra.kind]?.provider_name}
+          </Flex>
+          <Timestamp>Started {readableDate(infra.created_at)}</Timestamp>
+        </InfraHeader>
+        <ErrorWrapper>{error}</ErrorWrapper>
+      </StyledInfraObject>
+    );
   };
 
-  const renderModules = () => {
-    return modules.map((val) => {
-      const totalResources = val.resources?.length;
-      const provisionedResources = val.resources?.filter((resource) => {
-        return resource.provisioned;
-      }).length;
+  const renderV2Infra = (infra: Infrastructure) => {
+    return (
+      <InfraObject
+        key={infra.id}
+        project_id={project_id}
+        infra={infra}
+        is_expanded={false}
+      />
+    );
+  };
 
-      let errors: string[] = [];
-
-      if (val.status == "destroyed") {
-        errors.push("Note: this infrastructure was automatically destroyed.");
+  const renderInfras = () => {
+    return infras.map((infra) => {
+      if (infra.api_version == "" || infra.api_version == "v1") {
+        return renderV1Infra(infra);
       }
 
-      let hasError =
-        val.resources?.filter((resource) => {
-          if (resource.errored?.errored_out) {
-            errors.push(resource.errored?.error_context);
-          }
-
-          return resource.errored?.errored_out;
-        }).length > 0;
-
-      if (val.global_errors) {
-        for (let globalErr of val.global_errors) {
-          errors.push(globalErr.error_context);
-          hasError = true;
-        }
-      }
-
-      // remove duplicate errors
-      errors = errors.filter(
-        (error, index, self) =>
-          index ===
-          self.findIndex((e) => {
-            if (e && error) {
-              return e === error || e.includes(error) || error.includes(e);
-            }
-          })
-      );
-
-      const width =
-        val.status == "created"
-          ? 100
-          : 100 * (provisionedResources / (totalResources * 1.0)) || 0;
-
-      let error = null;
-
-      if (hasError) {
-        error = errors.map((error, index) => {
-          return <ExpandedError key={index}>{error}</ExpandedError>;
-        });
-      }
-      let loadingFill;
-      let status;
-
-      if (hasError || val.status == "destroyed") {
-        loadingFill = <LoadingFill status="error" width={width + "%"} />;
-        status = renderStatus("error");
-      } else if (width == 100) {
-        loadingFill = <LoadingFill status="successful" width={width + "%"} />;
-        status = renderStatus("successful");
-      } else {
-        loadingFill = <LoadingFill status="loading" width={width + "%"} />;
-        status = renderStatus("loading");
-      }
-
-      return (
-        <InfraObject key={val.id}>
-          <InfraHeader>
-            <Flex>
-              {status}
-              {integrationList[val.kind] && (
-                <Icon src={integrationList[val.kind].icon} />
-              )}
-              {nameMap[val.kind]}
-            </Flex>
-            <Timestamp>Started {readableDate(val.created_at)}</Timestamp>
-          </InfraHeader>
-          <LoadingBar>{loadingFill}</LoadingBar>
-          <ErrorWrapper>{error}</ErrorWrapper>
-        </InfraObject>
-      );
+      return renderV2Infra(infra);
     });
   };
 
-  return <StyledProvisionerStatus>{renderModules()}</StyledProvisionerStatus>;
+  return <StyledProvisionerStatus>{renderInfras()}</StyledProvisionerStatus>;
 };
 
 export default ProvisionerStatus;
+
+type InfraObjectProps = {
+  infra: Infrastructure;
+  project_id: number;
+  is_expanded: boolean;
+};
+
+const InfraObject: React.FC<InfraObjectProps> = ({
+  infra,
+  project_id,
+  is_expanded,
+}) => {
+  const [isExpanded, setIsExpanded] = useState(is_expanded);
+  const [isInProgress, setIsInProgress] = useState(
+    infra.status == "creating" ||
+      infra.status == "updating" ||
+      infra.status == "deleting"
+  );
+  const [fullInfra, setFullInfra] = useState<Infrastructure>(null);
+  const [infraState, setInfraState] = useState<TFState>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if ((isExpanded || isInProgress) && !fullInfra) {
+      setIsLoading(true);
+
+      api
+        .getInfraByID(
+          "<token>",
+          {},
+          {
+            project_id: project_id,
+            infra_id: infra.id,
+          }
+        )
+        .then(({ data }) => {
+          setFullInfra(data);
+          setIsLoading(false);
+        })
+        .catch((err) => {
+          console.error(err);
+        });
+    }
+  }, [infra, project_id, isExpanded, isInProgress]);
+
+  useEffect(() => {
+    if ((isExpanded || isInProgress) && !infraState) {
+      setIsLoading(true);
+
+      api
+        .getInfraState(
+          "<token>",
+          {},
+          {
+            project_id: project_id,
+            infra_id: infra.id,
+          }
+        )
+        .then(({ data }) => {
+          setInfraState(data);
+          setIsLoading(false);
+        })
+        .catch((err) => {
+          console.error(err);
+        });
+    }
+  }, [infra, project_id, isExpanded, isInProgress]);
+
+  const renderExpandedContentsCreated = () => {
+    return (
+      <OperationDetails
+        infra_id={fullInfra.id}
+        operation_id={fullInfra.latest_operation.id}
+        state={infraState}
+      />
+    );
+  };
+
+  const renderExpandedContents = () => {
+    if (!isExpanded) {
+      return null;
+    } else if (isInProgress && fullInfra && infraState) {
+      // TODO: in this case, subscribe to the websocket and compute the state
+      // to display. State should be computed from current and websocket.
+      return (
+        <ErrorWrapper>
+          {<div>{fullInfra.latest_operation.id}</div>}
+        </ErrorWrapper>
+      );
+    } else if (fullInfra && infraState) {
+      // TODO: in this case, determine the status and display the resources
+      return renderExpandedContentsCreated();
+    }
+
+    return (
+      <ErrorWrapper>
+        <Placeholder>
+          <Loading />{" "}
+        </Placeholder>
+      </ErrorWrapper>
+    );
+  };
+
+  return (
+    <StyledInfraObject key={infra.id}>
+      <InfraHeader
+        onClick={() =>
+          setIsExpanded((val) => {
+            setIsLoading(true);
+            return !val;
+          })
+        }
+      >
+        <Flex>
+          {integrationList[infra.kind] && (
+            <Icon src={integrationList[infra.kind].icon} />
+          )}
+          {KindMap[infra.kind]?.provider_name}
+        </Flex>
+        <Timestamp>Started {readableDate(infra.created_at)}</Timestamp>
+      </InfraHeader>
+      {renderExpandedContents()}
+    </StyledInfraObject>
+  );
+};
+
+type OperationDetailsProps = {
+  infra_id: number;
+  operation_id: string;
+  state: TFState;
+};
+
+const OperationDetails: React.FunctionComponent<OperationDetailsProps> = ({
+  infra_id,
+  operation_id,
+  state,
+}) => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [operation, setOperation] = useState<Operation>(null);
+  const [modifiedResources, setModifiedResources] = useState(1.0);
+  const { currentProject, setCurrentError } = useContext(Context);
+
+  const { newWebsocket, openWebsocket, closeWebsocket } = useWebsockets();
+
+  useEffect(() => {
+    api
+      .getOperation(
+        "<token>",
+        {},
+        {
+          project_id: currentProject.id,
+          infra_id: infra_id,
+          operation_id: operation_id,
+        }
+      )
+      .then(({ data }) => {
+        setOperation(data);
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setHasError(true);
+        setCurrentError(err.response?.data?.error);
+        setIsLoading(false);
+      });
+  }, [currentProject, operation_id]);
+
+  if (isLoading) {
+    return (
+      <Placeholder>
+        <Loading />
+      </Placeholder>
+    );
+  }
+
+  if (hasError) {
+    return <Placeholder>Error</Placeholder>;
+  }
+
+  const getOperationDescription = (
+    type: OperationType,
+    status: OperationStatus,
+    time: string
+  ): string => {
+    switch (type) {
+      case "retry_create":
+      case "create":
+        if (status == "starting") {
+          return (
+            "Status: infrastructure creation in progress, started at " +
+            readableDate(time)
+          );
+        } else if (status == "completed") {
+          return (
+            "Status: infrastructure creation completed at " + readableDate(time)
+          );
+        } else if (status == "errored") {
+          return "Status: this infrastructure encountered an error while creating.";
+        }
+      case "update":
+        if (status == "starting") {
+          return (
+            "Status: infrastructure update in progress, started at " +
+            readableDate(time)
+          );
+        } else if (status == "completed") {
+          return (
+            "Status: infrastructure update completed at " + readableDate(time)
+          );
+        } else if (status == "errored") {
+          return "Status: this infrastructure encountered an error while updating.";
+        }
+      case "retry_delete":
+      case "delete":
+        if (status == "starting") {
+          return (
+            "Status: infrastructure deletion in progress, started at " +
+            readableDate(time)
+          );
+        } else if (status == "completed") {
+          return (
+            "Status: infrastructure deletion completed at " + readableDate(time)
+          );
+        } else if (status == "errored") {
+          return "Status: this infrastructure encountered an error while deleting.";
+        }
+    }
+  };
+
+  const renderLoadingBar = () => {
+    let width = (100 * modifiedResources) / Object.keys(state.resources).length;
+
+    return (
+      <StatusContainer>
+        <LoadingBar>
+          <LoadingFill status="loading" width={width + "%"} />
+        </LoadingBar>
+        <ResourceNumber>7 / 7 Created</ResourceNumber>
+      </StatusContainer>
+    );
+  };
+
+  return (
+    <StyledCard>
+      {renderLoadingBar()}
+      <Description>
+        {getOperationDescription(
+          operation.type,
+          operation.status,
+          operation.last_updated
+        )}
+      </Description>
+      {/* <Description>
+        Encountered the following errors while provisioning:
+      </Description>
+      <ErrorWrapper>
+        <ExpandedError>Your infrastructure could not be created</ExpandedError>
+      </ErrorWrapper> */}
+    </StyledCard>
+  );
+};
+
+const StyledCard = styled.div`
+  padding: 12px 20px;
+`;
 
 const Flex = styled.div`
   display: flex;
@@ -192,6 +399,20 @@ const ExpandedError = styled.div`
   padding-bottom: 17px;
 `;
 
+const StatusContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+`;
+
+const ResourceNumber = styled.div`
+  font-size: 12px;
+  margin-left: 7px;
+  min-width: 100px;
+  text-align: right;
+  color: #aaaabb;
+`;
+
 const movingGradient = keyframes`
   0% {
       background-position: left bottom;
@@ -200,6 +421,40 @@ const movingGradient = keyframes`
   100% {
       background-position: right bottom;
   }
+`;
+
+const StyledProvisionerStatus = styled.div`
+  margin-top: 25px;
+`;
+
+const StyledInfraObject = styled.div`
+  background: #ffffff1a;
+  border: 1px solid #aaaabb;
+  border-radius: 5px;
+  margin-bottom: 10px;
+  position: relative;
+`;
+
+const InfraHeader = styled.div`
+  font-size: 13px;
+  font-weight: 500;
+  justify-content: space-between;
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+
+  :hover {
+    background: #ffffff12;
+  }
+`;
+
+const LoadingBar = styled.div`
+  background: #ffffff22;
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 100px;
 `;
 
 const LoadingFill = styled.div<{ width: string; status: string }>`
@@ -215,61 +470,4 @@ const LoadingFill = styled.div<{ width: string; status: string }>`
   animation: ${movingGradient} 2s infinite;
   animation-timing-function: ease-in-out;
   animation-direction: alternate;
-`;
-
-const StatusIcon = styled.div<{ successful?: boolean }>`
-  display: flex;
-  align-items: center;
-  font-family: "Work Sans", sans-serif;
-  font-size: 13px;
-  color: #ffffff55;
-  max-width: 500px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  > i {
-    font-size: 18px;
-    margin-right: 10px;
-    float: left;
-    color: ${(props) => (props.successful ? "rgb(56, 168, 138)" : "#fcba03")};
-  }
-`;
-
-const LoadingGif = styled.img`
-  width: 15px;
-  height: 15px;
-  margin-right: 9px;
-  margin-bottom: 0px;
-`;
-
-const StyledProvisionerStatus = styled.div`
-  margin-top: 25px;
-`;
-
-const LoadingBar = styled.div`
-  width: calc(100% - 30px);
-  background: #ffffff22;
-  border: 100px;
-  margin: 15px 15px 0;
-  height: 18px;
-  overflow: hidden;
-  border-radius: 100px;
-`;
-
-const InfraObject = styled.div`
-  background: #ffffff22;
-  padding: 15px 0 0;
-  border: 1px solid #aaaabb;
-  border-radius: 5px;
-  margin-bottom: 10px;
-  position: relative;
-`;
-
-const InfraHeader = styled.div`
-  font-size: 13px;
-  font-weight: 500;
-  justify-content: space-between;
-  padding: 0 15px;
-  display: flex;
-  align-items: center;
 `;

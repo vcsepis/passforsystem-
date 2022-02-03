@@ -83,7 +83,7 @@ type CreateInfraRequest struct {
 }
 
 type ListInfraRequest struct {
-	Version string `schema:"version" form:"oneof=v1 v2"`
+	Version string `schema:"version"`
 }
 
 type DeleteInfraRequest struct {

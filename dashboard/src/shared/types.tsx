@@ -378,6 +378,7 @@ export type OperationType =
 
 export type Infrastructure = {
   id: number;
+  api_version: string;
   created_at: string;
   updated_at: string;
   project_id: number;
@@ -409,6 +410,7 @@ export type ProviderInfoMap = {
     source: string;
     resource_name: string;
     resource_link: string;
+    provider_name: string;
   };
 };
 
@@ -446,48 +448,56 @@ export const KindMap: ProviderInfoMap = {
     source: "porter/aws/ecr",
     resource_name: "Registry",
     resource_link: "/integrations/registry",
+    provider_name: "Elastic Container Registry (ECR)",
   },
   eks: {
     provider: "aws",
     source: "porter/aws/eks",
     resource_name: "Cluster",
     resource_link: "/dashboard",
+    provider_name: "Elastic Kubernetes Service (EKS)",
   },
   rds: {
     provider: "aws",
     source: "porter/aws/rds",
     resource_name: "Database",
     resource_link: "/databases",
+    provider_name: "Relational Database Service (RDS)",
   },
   gcr: {
     provider: "gcp",
     source: "porter/gcp/gcr",
     resource_name: "Registry",
     resource_link: "/integrations/registry",
+    provider_name: "Google Container Registry (GCR)",
   },
   gke: {
     provider: "gcp",
     source: "porter/gcp/gke",
     resource_name: "Cluster",
     resource_link: "/dashboard",
+    provider_name: "Google Kubernetes Engine (GKE)",
   },
   docr: {
     provider: "aws",
     source: "porter/do/docr",
     resource_name: "Registry",
     resource_link: "/integrations/registry",
+    provider_name: "Digital Ocean Container Registry (DOCR)",
   },
   doks: {
     provider: "aws",
     source: "porter/do/doks",
     resource_name: "Cluster",
     resource_link: "/dashboard",
+    provider_name: "Digital Ocean Kubernetes Service (DOKS)",
   },
   test: {
     provider: "aws",
     source: "porter/test",
     resource_name: "Test",
     resource_link: "/dashboard",
+    provider_name: "Testing",
   },
 };
 
