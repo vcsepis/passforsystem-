@@ -4,6 +4,7 @@ import api from "shared/api";
 import styled from "styled-components";
 import Loading from "components/Loading";
 import { TFState } from "shared/types";
+import Placeholder from "components/Placeholder";
 
 type Props = {
   infra_id: number;
@@ -55,7 +56,7 @@ const InfraResourceList: React.FunctionComponent<Props> = ({ infra_id }) => {
   }
 
   const renderContents = () => {
-    return Object.keys(infraState.resources).map((key) => {
+    return Object.keys({ ...(infraState?.resources || {}) }).map((key) => {
       return (
         <RepoName key={key} lastItem={false} isSelected={false}>
           {key}
@@ -85,28 +86,6 @@ const ListContainer = styled.div`
   max-height: 400px;
   background: #ffffff11;
   overflow-y: auto;
-`;
-
-const Placeholder = styled.div`
-  padding: 30px;
-  margin-top: 35px;
-  padding-bottom: 40px;
-  font-size: 13px;
-  color: #ffffff44;
-  min-height: 400px;
-  height: 50vh;
-  background: #ffffff11;
-  border-radius: 8px;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-
-  > i {
-    font-size: 18px;
-    margin-right: 8px;
-  }
 `;
 
 const RepoName = styled.div`

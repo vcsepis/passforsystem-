@@ -16,17 +16,16 @@ import { integrationList } from "shared/common";
 import { Infrastructure, KindMap } from "shared/types";
 import { capitalize, readableDate } from "shared/string_utils";
 import Placeholder from "components/Placeholder";
-import Button from "components/Button";
 import SaveButton from "components/SaveButton";
+import { useRouting } from "shared/routing";
+import Description from "components/Description";
 
 const InfrastructureList = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [infraList, setInfraList] = useState<Infrastructure[]>([]);
   const { currentProject, setCurrentError } = useContext(Context);
-
-  const location = useLocation();
-  const history = useHistory();
+  const { pushFiltered } = useRouting();
 
   useEffect(() => {
     if (currentProject) {
@@ -175,9 +174,7 @@ const InfrastructureList = () => {
             makeFlush={true}
             clearPosition={true}
             onClick={() =>
-              pushFiltered({ history, location }, `/infrastructure/provision`, [
-                "project_id",
-              ])
+              pushFiltered(`/infrastructure/provision`, ["project_id"])
             }
           >
             <i className="material-icons">add</i>
@@ -192,11 +189,7 @@ const InfrastructureList = () => {
           isLoading={isLoading}
           onRowClick={(row) => {
             let original = row.original as Infrastructure;
-            pushFiltered(
-              { history, location },
-              `/infrastructure/${original.id}`,
-              ["project_id"]
-            );
+            pushFiltered(`/infrastructure/${original.id}`, ["project_id"]);
           }}
         />
       </StyledTableWrapper>
@@ -261,13 +254,6 @@ const DashboardIcon = styled.div`
   > i {
     font-size: 22px;
   }
-`;
-
-const Description = styled.div`
-  color: #aaaabb;
-  margin-top: 13px;
-  margin-left: 2px;
-  font-size: 13px;
 `;
 
 const InfoSection = styled.div`

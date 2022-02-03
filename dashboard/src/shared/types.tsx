@@ -490,3 +490,32 @@ export const KindMap: ProviderInfoMap = {
     resource_link: "/dashboard",
   },
 };
+
+export type InfraTemplateMeta = {
+  icon?: string;
+  description: string;
+  name: string;
+  kind: string;
+  version?: string;
+  required_credential: InfraCredentialOptions;
+};
+
+export type InfraTemplate = {
+  icon?: string;
+  description: string;
+  name: string;
+  kind: string;
+  version?: string;
+  form: any;
+  required_credential: InfraCredentialOptions;
+};
+
+export type InfraCredentialOptions =
+  | "aws_integration_id"
+  | "gcp_integration_id"
+  | "do_integration_id"
+  | "";
+
+export type InfraCredentials = {
+  [key in InfraCredentialOptions]?: number;
+};

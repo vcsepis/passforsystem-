@@ -1,14 +1,11 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useState } from "react";
 import InputRow from "components/form-components/InputRow";
-import SelectRow from "components/form-components/SelectRow";
 import SaveButton from "components/SaveButton";
 
 import { Context } from "shared/Context";
 import api from "shared/api";
 import styled from "styled-components";
 import Loading from "components/Loading";
-import { Operation, OperationStatus, OperationType } from "shared/types";
-import { readableDate } from "shared/string_utils";
 import Placeholder from "components/Placeholder";
 import Helper from "components/form-components/Helper";
 import UploadArea from "components/form-components/UploadArea";
@@ -105,33 +102,6 @@ const GCPCredentialForm: React.FunctionComponent<Props> = ({
 
 export default GCPCredentialForm;
 
-const GCPCredentialWrapper = styled.div`
-  width: 80%;
-  margin: 0 auto;
-`;
-
-const PreviewRow = styled.div`
-  display: flex;
-  align-items: center;
-  padding: 12px 15px;
-  color: #ffffff55;
-  background: #ffffff11;
-  border: 1px solid #aaaabb;
-  justify-content: space-between;
-  font-size: 13px;
-  border-radius: 5px;
-  cursor: pointer;
-  margin: 16px 0;
-
-  :hover {
-    background: #ffffff22;
-  }
-`;
-
-const CreateNewRow = styled(PreviewRow)`
-  background: none;
-`;
-
 const Flex = styled.div`
   display: flex;
   color: #ffffff;
@@ -141,8 +111,4 @@ const Flex = styled.div`
     font-size: 20px;
     margin-right: 10px;
   }
-`;
-
-const Right = styled.div`
-  text-align: right;
 `;

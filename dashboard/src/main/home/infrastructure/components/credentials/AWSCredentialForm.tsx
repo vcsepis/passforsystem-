@@ -141,33 +141,6 @@ const AWSCredentialForm: React.FunctionComponent<Props> = ({
 
 export default AWSCredentialForm;
 
-const AWSCredentialWrapper = styled.div`
-  width: 80%;
-  margin: 0 auto;
-`;
-
-const PreviewRow = styled.div`
-  display: flex;
-  align-items: center;
-  padding: 12px 15px;
-  color: #ffffff55;
-  background: #ffffff11;
-  border: 1px solid #aaaabb;
-  justify-content: space-between;
-  font-size: 13px;
-  border-radius: 5px;
-  cursor: pointer;
-  margin: 16px 0;
-
-  :hover {
-    background: #ffffff22;
-  }
-`;
-
-const CreateNewRow = styled(PreviewRow)`
-  background: none;
-`;
-
 const Flex = styled.div`
   display: flex;
   color: #ffffff;
@@ -177,8 +150,4 @@ const Flex = styled.div`
     font-size: 20px;
     margin-right: 10px;
   }
-`;
-
-const Right = styled.div`
-  text-align: right;
 `;

@@ -1,75 +1,40 @@
-import React, { useContext, useState, Component, useEffect } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import styled from "styled-components";
 
 import { Context } from "shared/Context";
 import api from "shared/api";
 
-import { Infrastructure, KindMap } from "shared/types";
-
-import TabSelector from "components/TabSelector";
 import Loading from "components/Loading";
 import TitleSection from "components/TitleSection";
 
-import { hardcodedNames } from "shared/hardcodedNameDict";
-import semver from "semver";
-import {
-  RouteComponentProps,
-  useHistory,
-  useLocation,
-  withRouter,
-} from "react-router";
-import { getQueryParam, getQueryParams, pushFiltered } from "shared/routing";
-import DocsHelper from "components/DocsHelper";
 import PorterFormWrapper from "components/porter-form/PorterFormWrapper";
-import yaml from "js-yaml";
 import Placeholder from "components/Placeholder";
 import AWSCredentialsList from "./credentials/AWSCredentialList";
 import Heading from "components/form-components/Heading";
 import GCPCredentialsList from "./credentials/GCPCredentialList";
 import DOCredentialsList from "./credentials/DOCredentialList";
+import { useRouting } from "shared/routing";
+import {
+  InfraTemplateMeta,
+  InfraTemplate,
+  InfraCredentials,
+} from "shared/types";
+import Description from "components/Description";
 
 type Props = {};
-
-export type InfraTemplateMeta = {
-  icon?: string;
-  description: string;
-  name: string;
-  kind: string;
-  version?: string;
-  required_credential: CredentialOptions;
-};
-
-export type InfraTemplate = {
-  icon?: string;
-  description: string;
-  name: string;
-  kind: string;
-  version?: string;
-  form: any;
-  required_credential: CredentialOptions;
-};
-
-export type CredentialOptions =
-  | "aws_integration_id"
-  | "gcp_integration_id"
-  | "do_integration_id"
-  | "";
-
-type Credentials = {
-  [key in CredentialOptions]?: number;
-};
 
 const ProvisionInfra: React.FunctionComponent<Props> = () => {
   const { currentProject, setCurrentError } = useContext(Context);
   const [templates, setTemplates] = useState<InfraTemplateMeta[]>([]);
   const [currentTemplate, setCurrentTemplate] = useState<InfraTemplate>(null);
-  const [currentCredential, setCurrentCredential] = useState<Credentials>(null);
+  const [currentCredential, setCurrentCredential] = useState<InfraCredentials>(
+    null
+  );
 
   const [isLoading, setIsLoading] = useState(false);
   const [hasError, setHasError] = useState(false);
 
-  const location = useLocation();
-  const history = useHistory();
+  const { pushFiltered } = useRouting();
 
   useEffect(() => {
     if (currentProject) {
@@ -123,15 +88,9 @@ const ProvisionInfra: React.FunctionComponent<Props> = () => {
         setIsLoading(false);
 
         if (data?.infra_id) {
-          pushFiltered(
-            { history, location },
-            `/infrastructure/${data?.infra_id}`,
-            ["project_id"]
-          );
+          pushFiltered(`/infrastructure/${data?.infra_id}`, ["project_id"]);
         } else {
-          pushFiltered({ history, location }, `/infrastructure`, [
-            "project_id",
-          ]);
+          pushFiltered(`/infrastructure`, ["project_id"]);
         }
       })
       .catch((err) => {
@@ -506,13 +465,6 @@ const ExpandedContainer = styled.div`
 const FormContainer = styled.div`
   position: relative;
   margin: 20px 0;
-`;
-
-const Description = styled.div`
-  color: #aaaabb;
-  margin-top: 13px;
-  margin-left: 2px;
-  font-size: 13px;
 `;
 
 const InfoSection = styled.div`

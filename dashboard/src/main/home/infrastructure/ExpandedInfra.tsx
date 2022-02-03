@@ -5,7 +5,6 @@ import Loading from "components/Loading";
 import { Context } from "shared/Context";
 import api from "shared/api";
 import { integrationList } from "shared/common";
-import yaml from "js-yaml";
 
 import DeployList from "./components/DeployList";
 import InfraResourceList from "./components/InfraResourceList";
@@ -14,8 +13,6 @@ import { readableDate } from "shared/string_utils";
 import Placeholder from "components/Placeholder";
 import Header from "components/expanded-object/Header";
 import { Infrastructure, KindMap, Operation } from "shared/types";
-import { useWebsockets } from "shared/hooks/useWebsockets";
-import { InfraTemplate } from "./components/ProvisionInfra";
 import InfraSettings from "./components/InfraSettings";
 
 type Props = {
@@ -148,8 +145,8 @@ const ExpandedInfra: React.FunctionComponent<Props> = ({ infra_id }) => {
       <Header
         last_updated={readableDate(infra.latest_operation?.last_updated)}
         back_link={"/infrastructure"}
-        name={integrationList[infra.kind].label}
-        icon={integrationList[infra.kind].icon}
+        name={integrationList[infra.kind]?.label}
+        icon={integrationList[infra.kind]?.icon}
         inline_title_items={[
           <ResourceLink
             key="resource_link"
@@ -240,21 +237,4 @@ const ResourceLink = styled(DynamicLink)`
     margin-left: 7px;
     font-size: 17px;
   }
-`;
-
-const initYaml = `name: Web
-hasSource: true
-includeHiddenFields: true
-tabs:
-- name: main
-  label: Configuration
-  sections:
-  - name: section_one
-    contents: 
-    - type: heading
-      label: String to echo
-    - type: string-input
-      variable: echo
-      value: 
-      - "hello"
 `;

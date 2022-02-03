@@ -3,18 +3,14 @@ import { Context } from "shared/Context";
 import api from "shared/api";
 import styled from "styled-components";
 import Loading from "components/Loading";
-import {
-  Infrastructure,
-  Operation,
-  OperationStatus,
-  OperationType,
-} from "shared/types";
+import { Operation, OperationStatus, OperationType } from "shared/types";
 import { readableDate } from "shared/string_utils";
 import Placeholder from "components/Placeholder";
 import { useWebsockets } from "shared/hooks/useWebsockets";
 import Heading from "components/form-components/Heading";
 import SaveButton from "components/SaveButton";
 import PorterFormWrapper from "components/porter-form/PorterFormWrapper";
+import Description from "components/Description";
 
 type Props = {
   infra_id: number;
@@ -33,12 +29,7 @@ const ExpandedOperation: React.FunctionComponent<Props> = ({
   const [logs, setLogs] = useState<string[]>(null);
   const { currentProject, setCurrentError } = useContext(Context);
 
-  const {
-    newWebsocket,
-    openWebsocket,
-    closeWebsocket,
-    closeAllWebsockets,
-  } = useWebsockets();
+  const { newWebsocket, openWebsocket, closeWebsocket } = useWebsockets();
 
   useEffect(() => {
     api
@@ -129,7 +120,7 @@ const ExpandedOperation: React.FunctionComponent<Props> = ({
 
           setLogs(data.logs);
         })
-        .catch((err) => {
+        .catch(() => {
           setLogs(["No logs available."]);
         });
     }
@@ -301,14 +292,6 @@ const ExpandedOperation: React.FunctionComponent<Props> = ({
 
 export default ExpandedOperation;
 
-const DatabasesListWrapper = styled.div``;
-
-const EventsGrid = styled.div`
-  display: grid;
-  grid-row-gap: 15px;
-  grid-template-columns: 1;
-`;
-
 const PorterFormContainer = styled.div`
   position: relative;
   min-width: 300px;
@@ -345,16 +328,6 @@ const BackArrow = styled.div`
   width: 120px;
 `;
 
-const Description = styled.div`
-  width: 100%;
-  color: white;
-  font-size: 13px;
-  color: #aaaabb;
-  margin: 20px 0 10px 0;
-  display: flex;
-  align-items: center;
-`;
-
 const MetadataContainer = styled.div`
   margin-bottom: 3px;
   border-radius: 6px;
@@ -377,68 +350,6 @@ const LogSectionContainer = styled.div`
   overflow: hidden;
   max-height: 500px;
   font-size: 13px;
-`;
-
-const NextIconContainer = styled.div`
-  width: 30px;
-  padding-top: 2px;
-`;
-
-const ContentContainer = styled.div`
-  display: flex;
-  height: 100%;
-  width: 100%;
-  align-items: center;
-`;
-
-const Icon = styled.span<{ status: OperationStatus }>`
-  font-size: 20px;
-  margin-left: 10px;
-  margin-right: 20px;
-  color: ${({ status }) => (status === "errored" ? "#ff385d" : "#aaaabb")};
-`;
-
-const EventInformation = styled.div`
-  display: flex;
-  flex-direction: column;
-  justify-content: space-around;
-  height: 100%;
-`;
-
-const EventName = styled.div`
-  font-family: "Work Sans", sans-serif;
-  font-weight: 500;
-  color: #ffffff;
-`;
-
-const Helper = styled.span`
-  text-transform: capitalize;
-  color: #ffffff44;
-  margin-right: 5px;
-`;
-
-const ActionContainer = styled.div`
-  display: flex;
-  align-items: center;
-  white-space: nowrap;
-  height: 100%;
-`;
-
-const TimestampContainer = styled.div`
-  display: flex;
-  white-space: nowrap;
-  align-items: center;
-  justify-self: flex-end;
-  color: #ffffff55;
-  margin-right: 10px;
-  font-size: 13px;
-  min-width: 130px;
-  justify-content: space-between;
-`;
-
-const TimestampIcon = styled.span`
-  margin-right: 7px;
-  font-size: 18px;
 `;
 
 const LogContainer = styled.div`

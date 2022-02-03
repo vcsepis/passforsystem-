@@ -55,12 +55,7 @@ const DeployList: React.FunctionComponent<Props> = ({
       });
   }, [currentProject, infra, infra?.latest_operation?.id]);
 
-  const {
-    newWebsocket,
-    openWebsocket,
-    closeWebsocket,
-    closeAllWebsockets,
-  } = useWebsockets();
+  const { newWebsocket, openWebsocket, closeWebsocket } = useWebsockets();
 
   const parseOperationWebsocketEvent = (evt: MessageEvent) => {
     let { status } = JSON.parse(evt.data);
@@ -323,12 +318,6 @@ const EventName = styled.div`
   font-family: "Work Sans", sans-serif;
   font-weight: 500;
   color: #ffffff;
-`;
-
-const Helper = styled.span`
-  text-transform: capitalize;
-  color: #ffffff44;
-  margin-right: 5px;
 `;
 
 const ActionContainer = styled.div`

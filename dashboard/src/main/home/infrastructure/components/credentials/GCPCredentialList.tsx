@@ -3,10 +3,10 @@ import { Context } from "shared/Context";
 import api from "shared/api";
 import styled from "styled-components";
 import Loading from "components/Loading";
-import { Operation, OperationStatus, OperationType } from "shared/types";
-import { readableDate } from "shared/string_utils";
 import Placeholder from "components/Placeholder";
 import GCPCredentialForm from "./GCPCredentialForm";
+import CredentialList from "./CredentialList";
+import Description from "components/Description";
 
 type Props = {
   selectCredential: (gcp_integration_id: number) => void;
@@ -66,20 +66,6 @@ const GCPCredentialsList: React.FunctionComponent<Props> = ({
     );
   }
 
-  const renderList = () => {
-    return gcpCredentials.map((cred) => {
-      return (
-        <PreviewRow key={cred.id} onClick={() => selectCredential(cred.id)}>
-          <Flex>
-            <i className="material-icons">account_circle</i>
-            {cred.gcp_sa_email || "email: n/a"}
-          </Flex>
-          <Right>Connected at {readableDate(cred.created_at)}</Right>
-        </PreviewRow>
-      );
-    });
-  };
-
   const renderContents = () => {
     if (shouldCreateCred) {
       return (
@@ -96,13 +82,18 @@ const GCPCredentialsList: React.FunctionComponent<Props> = ({
           Select your credentials from the list below, or create a new
           credential:
         </Description>
-        {renderList()}
-        <CreateNewRow onClick={() => setShouldCreateCred(true)}>
-          <Flex>
-            <i className="material-icons">account_circle</i>Add New GCP
-            Credential
-          </Flex>
-        </CreateNewRow>
+        <CredentialList
+          credentials={gcpCredentials.map((cred) => {
+            return {
+              id: cred.id,
+              display_name: cred.gcp_sa_email,
+              created_at: cred.created_at,
+            };
+          })}
+          selectCredential={selectCredential}
+          shouldCreateCred={() => setShouldCreateCred(true)}
+          addNewText="Add New GCP Credential"
+        />
       </>
     );
   };
@@ -114,51 +105,4 @@ export default GCPCredentialsList;
 
 const GCPCredentialWrapper = styled.div`
   margin-top: 20px;
-`;
-
-const PreviewRow = styled.div`
-  display: flex;
-  align-items: center;
-  padding: 12px 15px;
-  color: #ffffff55;
-  background: #ffffff01;
-  border: 1px solid #aaaabb;
-  justify-content: space-between;
-  font-size: 13px;
-  border-radius: 5px;
-  cursor: pointer;
-  margin: 16px 0;
-
-  :hover {
-    background: #ffffff10;
-  }
-`;
-
-const Description = styled.div`
-  width: 100%;
-  font-size: 13px;
-  color: #aaaabb;
-  margin: 20px 0;
-  display: flex;
-  align-items: center;
-  font-weight: 400;
-`;
-
-const CreateNewRow = styled(PreviewRow)`
-  background: none;
-`;
-
-const Flex = styled.div`
-  display: flex;
-  color: #ffffff;
-  align-items: center;
-  > i {
-    color: #aaaabb;
-    font-size: 20px;
-    margin-right: 10px;
-  }
-`;
-
-const Right = styled.div`
-  text-align: right;
 `;
