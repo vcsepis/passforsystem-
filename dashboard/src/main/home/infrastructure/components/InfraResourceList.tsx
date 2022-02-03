@@ -58,9 +58,9 @@ const InfraResourceList: React.FunctionComponent<Props> = ({ infra_id }) => {
   const renderContents = () => {
     return Object.keys({ ...(infraState?.resources || {}) }).map((key) => {
       return (
-        <RepoName key={key} lastItem={false} isSelected={false}>
+        <StyledResource key={key} lastItem={false} isSelected={false}>
           {key}
-        </RepoName>
+        </StyledResource>
       );
     });
   };
@@ -88,7 +88,7 @@ const ListContainer = styled.div`
   overflow-y: auto;
 `;
 
-const RepoName = styled.div`
+const StyledResource = styled.div`
   display: flex;
   width: 100%;
   font-size: 13px;

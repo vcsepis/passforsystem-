@@ -209,20 +209,20 @@ const DeployList: React.FunctionComponent<Props> = ({
                   ? "check_circle"
                   : "cached"}
               </Icon>
-              <EventInformation>
-                <EventName>
+              <DeployInformation>
+                <DeployHeader>
                   {getOperationDescription(operation.type, operation.status)}
-                </EventName>
-              </EventInformation>
+                </DeployHeader>
+              </DeployInformation>
             </ContentContainer>
-            <ActionContainer>
+            <MetaContainer>
               <TimestampContainer>
                 <TimestampIcon className="material-icons-outlined">
                   access_time
                 </TimestampIcon>
                 <span>{readableDate(operation.last_updated)}</span>
               </TimestampContainer>
-            </ActionContainer>
+            </MetaContainer>
             <NextIconContainer>
               <i className="material-icons next-icon">navigate_next</i>
             </NextIconContainer>
@@ -234,7 +234,7 @@ const DeployList: React.FunctionComponent<Props> = ({
 
   return (
     <DatabasesListWrapper>
-      <EventsGrid>{renderContents()}</EventsGrid>
+      <StyledDeploysGrid>{renderContents()}</StyledDeploysGrid>
     </DatabasesListWrapper>
   );
 };
@@ -243,7 +243,7 @@ export default DeployList;
 
 const DatabasesListWrapper = styled.div``;
 
-const EventsGrid = styled.div`
+const StyledDeploysGrid = styled.div`
   display: grid;
   grid-row-gap: 15px;
   grid-template-columns: 1;
@@ -307,20 +307,20 @@ const Icon = styled.span<{ status: OperationStatus }>`
   color: ${({ status }) => (status === "errored" ? "#ff385d" : "#aaaabb")};
 `;
 
-const EventInformation = styled.div`
+const DeployInformation = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: space-around;
   height: 100%;
 `;
 
-const EventName = styled.div`
+const DeployHeader = styled.div`
   font-family: "Work Sans", sans-serif;
   font-weight: 500;
   color: #ffffff;
 `;
 
-const ActionContainer = styled.div`
+const MetaContainer = styled.div`
   display: flex;
   align-items: center;
   white-space: nowrap;
@@ -331,7 +331,6 @@ const TimestampContainer = styled.div`
   display: flex;
   white-space: nowrap;
   align-items: center;
-  justify-self: flex-end;
   color: #ffffff55;
   margin-right: 10px;
   font-size: 13px;

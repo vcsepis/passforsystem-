@@ -14,14 +14,17 @@ import Placeholder from "components/Placeholder";
 import Header from "components/expanded-object/Header";
 import { Infrastructure, KindMap, Operation } from "shared/types";
 import InfraSettings from "./components/InfraSettings";
-
-type Props = {
-  infra_id: number;
-};
+import { useParams } from "react-router";
 
 type InfraTabOptions = "deploys" | "resources" | "settings";
 
-const ExpandedInfra: React.FunctionComponent<Props> = ({ infra_id }) => {
+type ExpandedInfraParams = {
+  infra_id_str: string;
+};
+
+const ExpandedInfra: React.FunctionComponent = () => {
+  const { infra_id_str } = useParams<ExpandedInfraParams>();
+  const infra_id = parseInt(infra_id_str);
   const [infra, setInfra] = useState<Infrastructure>(null);
   const [infraForm, setInfraForm] = useState<any>(null);
   const [saveValuesStatus, setSaveValueStatus] = useState<string>(null);
