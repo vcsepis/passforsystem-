@@ -5,13 +5,14 @@ import { integrationList } from "shared/common";
 import loading from "assets/loading.gif";
 
 import styled, { keyframes } from "styled-components";
-import { readableDate } from "shared/string_utils";
+import { capitalize, readableDate } from "shared/string_utils";
 import {
   Infrastructure,
   KindMap,
   Operation,
   OperationStatus,
   OperationType,
+  TFResourceState,
   TFState,
 } from "shared/types";
 import api from "shared/api";
@@ -24,10 +25,12 @@ import Description from "./Description";
 import Heading from "./form-components/Heading";
 import PorterFormWrapper from "./porter-form/PorterFormWrapper";
 import SaveButton from "./SaveButton";
+import { ProgressPlugin } from "webpack";
 
 type Props = {
   infras: Infrastructure[];
   project_id: number;
+  auto_expanded?: boolean;
 };
 
 const nameMap: { [key: string]: string } = {
@@ -40,7 +43,11 @@ const nameMap: { [key: string]: string } = {
   rds: "Amazon Relational Database (RDS)",
 };
 
-const ProvisionerStatus: React.FC<Props> = ({ infras, project_id }) => {
+const ProvisionerStatus: React.FC<Props> = ({
+  infras,
+  project_id,
+  auto_expanded,
+}) => {
   const renderV1Infra = (infra: Infrastructure) => {
     let errors: string[] = [];
 
@@ -78,7 +85,7 @@ const ProvisionerStatus: React.FC<Props> = ({ infras, project_id }) => {
         key={infra.id}
         project_id={project_id}
         infra={infra}
-        is_expanded={false}
+        is_expanded={auto_expanded}
       />
     );
   };
@@ -166,28 +173,13 @@ const InfraObject: React.FC<InfraObjectProps> = ({
   }, [infra, project_id, isExpanded, isInProgress]);
 
   const renderExpandedContentsCreated = () => {
-    return (
-      <OperationDetails
-        infra_id={fullInfra.id}
-        operation_id={fullInfra.latest_operation.id}
-        state={infraState}
-      />
-    );
+    return <OperationDetails infra={fullInfra} />;
   };
 
   const renderExpandedContents = () => {
     if (!isExpanded) {
       return null;
-    } else if (isInProgress && fullInfra && infraState) {
-      // TODO: in this case, subscribe to the websocket and compute the state
-      // to display. State should be computed from current and websocket.
-      return (
-        <ErrorWrapper>
-          {<div>{fullInfra.latest_operation.id}</div>}
-        </ErrorWrapper>
-      );
-    } else if (fullInfra && infraState) {
-      // TODO: in this case, determine the status and display the resources
+    } else if (fullInfra) {
       return renderExpandedContentsCreated();
     }
 
@@ -197,6 +189,34 @@ const InfraObject: React.FC<InfraObjectProps> = ({
           <Loading />{" "}
         </Placeholder>
       </ErrorWrapper>
+    );
+  };
+
+  const renderTimestampSection = () => {
+    let timestampLabel = "Started";
+
+    switch (infra.status) {
+      case "created":
+        timestampLabel = "Created at";
+        break;
+      case "creating":
+        timestampLabel = "Started creating at";
+        break;
+      case "deleted":
+        timestampLabel = "Deleted at";
+        break;
+      case "deleting":
+        timestampLabel = "Started deleting at";
+        break;
+      case "updating":
+        timestampLabel = "Started updating at";
+        break;
+    }
+
+    return (
+      <Timestamp>
+        {timestampLabel} {readableDate(infra.updated_at)}
+      </Timestamp>
     );
   };
 
@@ -216,7 +236,14 @@ const InfraObject: React.FC<InfraObjectProps> = ({
           )}
           {KindMap[infra.kind]?.provider_name}
         </Flex>
-        <Timestamp>Started {readableDate(infra.created_at)}</Timestamp>
+        <Flex>
+          {renderTimestampSection()}
+          <ExpandIconContainer>
+            <i className="material-icons expand-icon">
+              {isExpanded ? "expand_less" : "expand_more"}
+            </i>
+          </ExpandIconContainer>
+        </Flex>
       </InfraHeader>
       {renderExpandedContents()}
     </StyledInfraObject>
@@ -224,23 +251,121 @@ const InfraObject: React.FC<InfraObjectProps> = ({
 };
 
 type OperationDetailsProps = {
-  infra_id: number;
-  operation_id: string;
-  state: TFState;
+  infra: Infrastructure;
 };
 
 const OperationDetails: React.FunctionComponent<OperationDetailsProps> = ({
-  infra_id,
-  operation_id,
-  state,
+  infra,
 }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [operation, setOperation] = useState<Operation>(null);
-  const [modifiedResources, setModifiedResources] = useState(1.0);
+  const [infraState, setInfraState] = useState<TFState>(null);
+  const [infraStateInitialized, setInfraStateInitialized] = useState(false);
   const { currentProject, setCurrentError } = useContext(Context);
+  const [erroredResources, setErroredResources] = useState<TFResourceState[]>(
+    []
+  );
+  const [createdResources, setCreatedResources] = useState<TFResourceState[]>(
+    []
+  );
+  const [plannedResources, setPlannedResources] = useState<TFResourceState[]>(
+    []
+  );
 
   const { newWebsocket, openWebsocket, closeWebsocket } = useWebsockets();
+
+  const parseOperationWebsocketEvent = (evt: MessageEvent) => {
+    let { status, resource_id, error } = JSON.parse(evt.data);
+
+    // if the status and resource_id are defined, add this to the infra state
+    if (status && resource_id) {
+      setInfraState((curr) => {
+        let currCopy: TFState = {
+          last_updated: curr.last_updated,
+          operation_id: curr.operation_id,
+          status: curr.status,
+          resources: { ...curr.resources },
+        };
+
+        if (currCopy.resources[resource_id] && status == "deleted") {
+          delete currCopy.resources[resource_id];
+        } else if (currCopy.resources[resource_id]) {
+          currCopy.resources[resource_id].status = status;
+          currCopy.resources[resource_id].error = error;
+        } else {
+          currCopy.resources[resource_id] = {
+            id: resource_id,
+            status: status,
+            error: error,
+          };
+        }
+
+        return currCopy;
+      });
+    }
+  };
+
+  const setupOperationWebsocket = (websocketID: string) => {
+    let apiPath = `/api/projects/${currentProject.id}/infras/${infra.id}/operations/${infra.latest_operation.id}/state`;
+
+    const wsConfig = {
+      onopen: () => {
+        console.log(`connected to websocket:`, websocketID);
+      },
+      onmessage: parseOperationWebsocketEvent,
+      onclose: () => {
+        console.log(`closing websocket:`, websocketID);
+      },
+      onerror: (err: ErrorEvent) => {
+        console.log(err);
+        closeWebsocket(websocketID);
+      },
+    };
+
+    newWebsocket(websocketID, apiPath, wsConfig);
+    openWebsocket(websocketID);
+  };
+
+  useEffect(() => {
+    // if the latest_operation is in progress, open a websocket
+    if (infraStateInitialized && infra.latest_operation.status === "starting") {
+      const websocketID = infra.latest_operation.id;
+
+      setupOperationWebsocket(websocketID);
+
+      return () => {
+        closeWebsocket(websocketID);
+      };
+    }
+  }, [infraStateInitialized]);
+
+  useEffect(() => {
+    api
+      .getInfraState(
+        "<token>",
+        {},
+        {
+          project_id: currentProject.id,
+          infra_id: infra.id,
+        }
+      )
+      .then(({ data }) => {
+        setInfraState(data);
+        setIsLoading(false);
+        setInfraStateInitialized(true);
+      })
+      .catch((err) => {
+        console.error(err);
+        setInfraState({
+          last_updated: "",
+          operation_id: infra.latest_operation.id,
+          status: "creating",
+          resources: {},
+        });
+        setInfraStateInitialized(true);
+      });
+  }, [currentProject, infra]);
 
   useEffect(() => {
     api
@@ -249,8 +374,8 @@ const OperationDetails: React.FunctionComponent<OperationDetailsProps> = ({
         {},
         {
           project_id: currentProject.id,
-          infra_id: infra_id,
-          operation_id: operation_id,
+          infra_id: infra.id,
+          operation_id: infra.latest_operation.id,
         }
       )
       .then(({ data }) => {
@@ -263,9 +388,52 @@ const OperationDetails: React.FunctionComponent<OperationDetailsProps> = ({
         setCurrentError(err.response?.data?.error);
         setIsLoading(false);
       });
-  }, [currentProject, operation_id]);
+  }, [currentProject, infra]);
 
-  if (isLoading) {
+  useEffect(() => {
+    if (infraState && infraState.resources) {
+      setErroredResources(
+        Object.keys(infraState.resources)
+          .map((key) => {
+            if (
+              infraState.resources[key].error &&
+              infraState.resources[key].error != null
+            ) {
+              return infraState.resources[key];
+            }
+
+            return null;
+          })
+          .filter((val) => val)
+      );
+
+      setCreatedResources(
+        Object.keys(infraState.resources)
+          .map((key) => {
+            if (infraState.resources[key].status == "created") {
+              return infraState.resources[key];
+            }
+
+            return null;
+          })
+          .filter((val) => val)
+      );
+
+      setPlannedResources(
+        Object.keys(infraState.resources)
+          .map((key) => {
+            if (infraState.resources[key].status == "planned_create") {
+              return infraState.resources[key];
+            }
+
+            return null;
+          })
+          .filter((val) => val)
+      );
+    }
+  }, [infraState]);
+
+  if (isLoading || !infraState) {
     return (
       <Placeholder>
         <Loading />
@@ -327,22 +495,64 @@ const OperationDetails: React.FunctionComponent<OperationDetailsProps> = ({
     }
   };
 
-  const renderLoadingBar = () => {
-    let width = (100 * modifiedResources) / Object.keys(state.resources).length;
+  const renderLoadingBar = (
+    completedResourceCount: number,
+    plannedResourceCount: number
+  ) => {
+    let width = (100.0 * completedResourceCount) / plannedResourceCount;
+
+    let operationKind = "Created";
+
+    switch (infra.latest_operation.type) {
+      case "retry_create":
+      case "create":
+        operationKind = "Created";
+        break;
+      case "update":
+        operationKind = "Updated";
+        break;
+      case "retry_delete":
+      case "delete":
+        operationKind = "Deleted";
+    }
 
     return (
       <StatusContainer>
         <LoadingBar>
           <LoadingFill status="loading" width={width + "%"} />
         </LoadingBar>
-        <ResourceNumber>7 / 7 Created</ResourceNumber>
+        <ResourceNumber>{`${completedResourceCount} / ${plannedResourceCount} ${operationKind}`}</ResourceNumber>
       </StatusContainer>
     );
   };
 
+  const renderErrorSection = () => {
+    if (erroredResources.length > 0) {
+      return (
+        <>
+          <Description>
+            Encountered the following errors while provisioning:
+          </Description>
+          <ErrorWrapper>
+            {erroredResources.map((resource, index) => {
+              return (
+                <ExpandedError key={index}>{resource.error}</ExpandedError>
+              );
+            })}
+          </ErrorWrapper>
+        </>
+      );
+    }
+  };
+
   return (
     <StyledCard>
-      {renderLoadingBar()}
+      {renderLoadingBar(
+        createdResources.length,
+        createdResources.length +
+          erroredResources.length +
+          plannedResources.length
+      )}
       <Description>
         {getOperationDescription(
           operation.type,
@@ -350,18 +560,15 @@ const OperationDetails: React.FunctionComponent<OperationDetailsProps> = ({
           operation.last_updated
         )}
       </Description>
-      {/* <Description>
-        Encountered the following errors while provisioning:
-      </Description>
-      <ErrorWrapper>
-        <ExpandedError>Your infrastructure could not be created</ExpandedError>
-      </ErrorWrapper> */}
+      {renderErrorSection()}
     </StyledCard>
   );
 };
 
 const StyledCard = styled.div`
   padding: 12px 20px;
+  max-height: 300px;
+  overflow-y: auto;
 `;
 
 const Flex = styled.div`
@@ -381,7 +588,6 @@ const Icon = styled.img`
 `;
 
 const ErrorWrapper = styled.div`
-  max-height: 150px;
   margin-top: 20px;
   overflow-y: auto;
   user-select: text;
@@ -403,6 +609,13 @@ const StatusContainer = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
+`;
+
+const StatusText = styled.div`
+  font-size: 13px;
+  margin-left: 15px;
+  color: #aaaabb;
+  font-weight: 400;
 `;
 
 const ResourceNumber = styled.div`
@@ -443,9 +656,19 @@ const InfraHeader = styled.div`
   display: flex;
   align-items: center;
   cursor: pointer;
+  height: 50px;
 
   :hover {
     background: #ffffff12;
+  }
+
+  .expand-icon {
+    display: none;
+    color: #ffffff55;
+  }
+
+  :hover .expand-icon {
+    display: inline-block;
   }
 `;
 
@@ -470,4 +693,10 @@ const LoadingFill = styled.div<{ width: string; status: string }>`
   animation: ${movingGradient} 2s infinite;
   animation-timing-function: ease-in-out;
   animation-direction: alternate;
+`;
+
+const ExpandIconContainer = styled.div`
+  width: 30px;
+  margin-left: 10px;
+  padding-top: 2px;
 `;

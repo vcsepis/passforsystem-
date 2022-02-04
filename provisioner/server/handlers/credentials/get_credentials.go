@@ -118,6 +118,7 @@ func (c *CredentialsGetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 			AWSClusterID:       awsInt.AWSClusterID,
 			AWSSecretAccessKey: awsInt.AWSSecretAccessKey,
 			AWSSessionToken:    awsInt.AWSSessionToken,
+			AWSRegion:          []byte(awsInt.AWSRegion),
 		}
 	}
 

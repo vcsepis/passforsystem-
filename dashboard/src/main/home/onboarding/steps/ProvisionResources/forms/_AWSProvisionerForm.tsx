@@ -309,13 +309,16 @@ export const SettingsForm: React.FC<{
 
     try {
       return await api
-        .provisionECR(
+        .provisionInfra(
           "<token>",
           {
+            kind: "ecr",
+            values: {
+              ecr_name: `${project.name}-registry`,
+            },
             aws_integration_id: awsIntegrationId,
-            ecr_name: `${project.name}-registry`,
           },
-          { id: project.id }
+          { project_id: project.id }
         )
         .then((res) => res?.data);
     } catch (error) {
@@ -326,15 +329,18 @@ export const SettingsForm: React.FC<{
   const provisionEKS = async (awsIntegrationId: number) => {
     try {
       return await api
-        .provisionEKS(
+        .provisionInfra(
           "<token>",
           {
+            kind: "eks",
+            values: {
+              cluster_name: clusterName,
+              machine_type: machineType,
+              issuer_email: snap.StateHandler.user_email,
+            },
             aws_integration_id: awsIntegrationId,
-            eks_name: clusterName,
-            machine_type: machineType,
-            issuer_email: snap.StateHandler.user_email,
           },
-          { id: project.id }
+          { project_id: project.id }
         )
         .then((res) => res?.data);
     } catch (error) {
