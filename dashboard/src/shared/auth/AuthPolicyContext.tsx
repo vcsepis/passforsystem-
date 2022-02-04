@@ -4,11 +4,13 @@ import { Context } from "shared/Context";
 import { POLICY_HIERARCHY_TREE, populatePolicy } from "./authorization-helpers";
 import { PolicyDocType } from "./types";
 
-type AuthContext = {
+type AuthPolicyContext = {
   currentPolicy: PolicyDocType;
 };
 
-export const AuthContext = React.createContext<AuthContext>({} as AuthContext);
+export const AuthPolicyContext = React.createContext<AuthPolicyContext>(
+  {} as AuthPolicyContext
+);
 
 const AuthProvider: React.FC = ({ children }) => {
   const { user, currentProject } = useContext(Context);
@@ -42,9 +44,9 @@ const AuthProvider: React.FC = ({ children }) => {
   }, [user, currentProject?.id]);
 
   return (
-    <AuthContext.Provider value={{ currentPolicy }}>
+    <AuthPolicyContext.Provider value={{ currentPolicy }}>
       {children}
-    </AuthContext.Provider>
+    </AuthPolicyContext.Provider>
   );
 };
 

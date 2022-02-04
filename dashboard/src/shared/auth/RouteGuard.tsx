@@ -1,7 +1,7 @@
 import UnauthorizedPage from "components/UnauthorizedPage";
 import React, { useContext, useMemo } from "react";
 import { Route, RouteProps } from "react-router";
-import { AuthContext } from "./AuthContext";
+import { AuthPolicyContext } from "./AuthPolicyContext";
 import { isAuthorized } from "./authorization-helpers";
 import { ScopeType, Verbs } from "./types";
 
@@ -21,7 +21,7 @@ const GuardedRoute: React.FC<RouteProps & GuardedRouteProps> = ({
   children,
   ...rest
 }) => {
-  const { currentPolicy } = useContext(AuthContext);
+  const { currentPolicy } = useContext(AuthPolicyContext);
   const auth = useMemo(() => {
     return isAuthorized(currentPolicy, scope, resource, verb);
   }, [currentPolicy, scope, resource, verb]);
@@ -44,7 +44,7 @@ export const fakeGuardedRoute = <ComponentProps extends object>(
   resource: string,
   verb: Verbs | Array<Verbs>
 ) => (Component: any) => (props: ComponentProps) => {
-  const { currentPolicy } = useContext(AuthContext);
+  const { currentPolicy } = useContext(AuthPolicyContext);
   const auth = useMemo(() => {
     return isAuthorized(currentPolicy, scope, resource, verb);
   }, [currentPolicy, scope, resource, verb]);

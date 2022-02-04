@@ -1,18 +1,18 @@
 import { useCallback, useContext } from "react";
-import { AuthContext } from "./AuthContext";
+import { AuthPolicyContext } from "./AuthPolicyContext";
 import { isAuthorized } from "./authorization-helpers";
 import { ScopeType, Verbs } from "./types";
 
 const useAuth = () => {
-  const authContext = useContext(AuthContext);
+  const authPolicyContext = useContext(AuthPolicyContext);
 
   const isAuth = useCallback(
     (
       scope: ScopeType,
       resource: string | string[],
       verb: Verbs | Array<Verbs>
-    ) => isAuthorized(authContext.currentPolicy, scope, resource, verb),
-    [authContext.currentPolicy]
+    ) => isAuthorized(authPolicyContext.currentPolicy, scope, resource, verb),
+    [authPolicyContext.currentPolicy]
   );
 
   return [isAuth];
