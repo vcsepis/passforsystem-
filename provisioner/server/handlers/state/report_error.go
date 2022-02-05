@@ -28,6 +28,7 @@ func NewReportErrorHandler(
 
 func (c *ReportErrorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// read the infra from the attached scope
+	infra, _ := r.Context().Value(types.InfraScope).(*models.Infra)
 	operation, _ := r.Context().Value(types.OperationScope).(*models.Operation)
 
 	req := &ptypes.ReportErrorRequest{}
@@ -36,12 +37,22 @@ func (c *ReportErrorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// update the infra to indicate error
+	infra.Status = "errored"
+
+	infra, err := c.Config.Repo.Infra().UpdateInfra(infra)
+
+	if err != nil {
+		apierrors.HandleAPIError(c.Config.Logger, c.Config.Alerter, w, r, apierrors.NewErrInternal(err), true)
+		return
+	}
+
 	// update the operation with the error
 	operation.Status = "errored"
 	operation.Errored = true
 	operation.Error = req.Error
 
-	operation, err := c.Config.Repo.Infra().UpdateOperation(operation)
+	operation, err = c.Config.Repo.Infra().UpdateOperation(operation)
 
 	if err != nil {
 		apierrors.HandleAPIError(c.Config.Logger, c.Config.Alerter, w, r, apierrors.NewErrInternal(err), true)

@@ -2,8 +2,11 @@ package infra
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"sync"
 
 	"github.com/porter-dev/porter/api/server/handlers"
 	"github.com/porter-dev/porter/api/server/shared"
@@ -45,13 +48,15 @@ func (c *InfraStreamLogHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 
 	client := pb.NewProvisionerClient(conn)
 
-	ctx, _ := context.WithCancel(context.Background())
-
 	header := metadata.New(map[string]string{
 		"workspace_id": workspaceID,
 	})
 
-	ctx = metadata.NewOutgoingContext(ctx, header)
+	ctx := metadata.NewOutgoingContext(context.Background(), header)
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	defer cancel()
 
 	stream, err := client.GetLog(ctx, &pb.Infra{
 		ProjectId: int64(infra.ProjectID),
@@ -64,19 +69,71 @@ func (c *InfraStreamLogHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// TODO: CANCEL BASED ON REQUEST
-	for {
-		tfLog, err := stream.Recv()
+	errorchan := make(chan error)
 
-		if err == io.EOF {
-			break
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		wg.Wait()
+		close(errorchan)
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		for {
+			if _, _, err := safeRW.ReadMessage(); err != nil {
+				errorchan <- nil
+				fmt.Println("closing websocket goroutine")
+				return
+			}
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		for {
+			tfLog, err := stream.Recv()
+
+			if err != nil {
+				if err == io.EOF || errors.Is(ctx.Err(), context.Canceled) {
+					errorchan <- nil
+				} else {
+					errorchan <- err
+				}
+
+				fmt.Println("closing grpc goroutine")
+
+				return
+			}
+
+			_, err = safeRW.Write([]byte(tfLog.Log))
+
+			if err != nil {
+				errorchan <- nil
+				fmt.Println("closing grpc goroutine")
+				return
+			}
 		}
 
+	}()
+
+	for err = range errorchan {
 		if err != nil {
-			c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
-			return
+			c.HandleAPIErrorNoWrite(w, r, apierrors.NewErrInternal(err))
 		}
 
-		safeRW.Write([]byte(tfLog.Log))
+		// close the grpc stream: do not check for error case since the stream could already be
+		// closed
+		stream.CloseSend()
+
+		// close the websocket stream: do not check for error case since the WS could already be
+		// closed
+		safeRW.Close()
+
+		// cancel the context set for the grpc stream to ensure that Recv is unblocked
+		cancel()
 	}
 }

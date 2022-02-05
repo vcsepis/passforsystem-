@@ -94,7 +94,7 @@ const ExpandedOperation: React.FunctionComponent<Props> = ({
 
     // if the operation is in progress, open a websocket
     if (operation.status === "starting") {
-      const websocketID = operation.id + "log_stream";
+      const websocketID = operation.id + "_log_stream";
 
       setupLogWebsocket(websocketID);
 

@@ -106,6 +106,7 @@ export const StatusPage = ({
       infras={infras}
       project_id={project_id}
       auto_expanded={auto_expanded}
+      setInfraStatus={setInfraStatus}
     />
   );
 };

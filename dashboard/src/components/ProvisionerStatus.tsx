@@ -30,6 +30,7 @@ import { ProgressPlugin } from "webpack";
 type Props = {
   infras: Infrastructure[];
   project_id: number;
+  setInfraStatus: (status: { hasError: boolean; description?: string }) => void;
   auto_expanded?: boolean;
 };
 
@@ -47,6 +48,7 @@ const ProvisionerStatus: React.FC<Props> = ({
   infras,
   project_id,
   auto_expanded,
+  setInfraStatus,
 }) => {
   const renderV1Infra = (infra: Infrastructure) => {
     let errors: string[] = [];
@@ -65,7 +67,7 @@ const ProvisionerStatus: React.FC<Props> = ({
 
     return (
       <StyledInfraObject key={infra.id}>
-        <InfraHeader>
+        <InfraHeader is_clickable={!auto_expanded}>
           <Flex>
             {integrationList[infra.kind] && (
               <Icon src={integrationList[infra.kind].icon} />
@@ -79,6 +81,12 @@ const ProvisionerStatus: React.FC<Props> = ({
     );
   };
 
+  const updateInfraStatus = (infra: Infrastructure) => {
+    setInfraStatus({
+      hasError: infra.status === "errored",
+    });
+  };
+
   const renderV2Infra = (infra: Infrastructure) => {
     return (
       <InfraObject
@@ -86,6 +94,8 @@ const ProvisionerStatus: React.FC<Props> = ({
         project_id={project_id}
         infra={infra}
         is_expanded={auto_expanded}
+        is_collapsible={!auto_expanded}
+        updateInfraStatus={updateInfraStatus}
       />
     );
   };
@@ -109,12 +119,16 @@ type InfraObjectProps = {
   infra: Infrastructure;
   project_id: number;
   is_expanded: boolean;
+  is_collapsible: boolean;
+  updateInfraStatus: (infra: Infrastructure) => void;
 };
 
 const InfraObject: React.FC<InfraObjectProps> = ({
   infra,
   project_id,
   is_expanded,
+  is_collapsible,
+  updateInfraStatus,
 }) => {
   const [isExpanded, setIsExpanded] = useState(is_expanded);
   const [isInProgress, setIsInProgress] = useState(
@@ -128,52 +142,63 @@ const InfraObject: React.FC<InfraObjectProps> = ({
 
   useEffect(() => {
     if ((isExpanded || isInProgress) && !fullInfra) {
-      setIsLoading(true);
-
-      api
-        .getInfraByID(
-          "<token>",
-          {},
-          {
-            project_id: project_id,
-            infra_id: infra.id,
-          }
-        )
-        .then(({ data }) => {
-          setFullInfra(data);
-          setIsLoading(false);
-        })
-        .catch((err) => {
-          console.error(err);
-        });
+      refreshInfra();
     }
   }, [infra, project_id, isExpanded, isInProgress]);
 
   useEffect(() => {
     if ((isExpanded || isInProgress) && !infraState) {
-      setIsLoading(true);
-
-      api
-        .getInfraState(
-          "<token>",
-          {},
-          {
-            project_id: project_id,
-            infra_id: infra.id,
-          }
-        )
-        .then(({ data }) => {
-          setInfraState(data);
-          setIsLoading(false);
-        })
-        .catch((err) => {
-          console.error(err);
-        });
+      refreshInfraState();
     }
   }, [infra, project_id, isExpanded, isInProgress]);
 
+  const refreshInfraState = () => {
+    api
+      .getInfraState(
+        "<token>",
+        {},
+        {
+          project_id: project_id,
+          infra_id: infra.id,
+        }
+      )
+      .then(({ data }) => {
+        setInfraState(data);
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+  };
+
+  const refreshInfra = () => {
+    setIsLoading(true);
+
+    api
+      .getInfraByID(
+        "<token>",
+        {},
+        {
+          project_id: project_id,
+          infra_id: infra.id,
+        }
+      )
+      .then(({ data }) => {
+        setFullInfra(data);
+        updateInfraStatus(data);
+
+        // re-query for the infra state
+        refreshInfraState();
+
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+  };
+
   const renderExpandedContentsCreated = () => {
-    return <OperationDetails infra={fullInfra} />;
+    return <OperationDetails infra={fullInfra} refreshInfra={refreshInfra} />;
   };
 
   const renderExpandedContents = () => {
@@ -193,23 +218,17 @@ const InfraObject: React.FC<InfraObjectProps> = ({
   };
 
   const renderTimestampSection = () => {
-    let timestampLabel = "Started";
+    let timestampLabel = "Started at";
 
     switch (infra.status) {
       case "created":
         timestampLabel = "Created at";
         break;
-      case "creating":
-        timestampLabel = "Started creating at";
-        break;
       case "deleted":
         timestampLabel = "Deleted at";
         break;
-      case "deleting":
-        timestampLabel = "Started deleting at";
-        break;
-      case "updating":
-        timestampLabel = "Started updating at";
+      case "errored":
+        timestampLabel = "Errored at";
         break;
     }
 
@@ -223,12 +242,15 @@ const InfraObject: React.FC<InfraObjectProps> = ({
   return (
     <StyledInfraObject key={infra.id}>
       <InfraHeader
-        onClick={() =>
-          setIsExpanded((val) => {
-            setIsLoading(true);
-            return !val;
-          })
-        }
+        is_clickable={is_collapsible}
+        onClick={() => {
+          if (is_collapsible) {
+            setIsExpanded((val) => {
+              setIsLoading(true);
+              return !val;
+            });
+          }
+        }}
       >
         <Flex>
           {integrationList[infra.kind] && (
@@ -238,7 +260,7 @@ const InfraObject: React.FC<InfraObjectProps> = ({
         </Flex>
         <Flex>
           {renderTimestampSection()}
-          <ExpandIconContainer>
+          <ExpandIconContainer hidden={!is_collapsible}>
             <i className="material-icons expand-icon">
               {isExpanded ? "expand_less" : "expand_more"}
             </i>
@@ -252,10 +274,12 @@ const InfraObject: React.FC<InfraObjectProps> = ({
 
 type OperationDetailsProps = {
   infra: Infrastructure;
+  refreshInfra: () => void;
 };
 
 const OperationDetails: React.FunctionComponent<OperationDetailsProps> = ({
   infra,
+  refreshInfra,
 }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -278,8 +302,11 @@ const OperationDetails: React.FunctionComponent<OperationDetailsProps> = ({
   const parseOperationWebsocketEvent = (evt: MessageEvent) => {
     let { status, resource_id, error } = JSON.parse(evt.data);
 
-    // if the status and resource_id are defined, add this to the infra state
-    if (status && resource_id) {
+    if (status == "OPERATION_COMPLETED") {
+      // if the operation is completed, call the completed handler
+      refreshInfra();
+    } else if (status && resource_id) {
+      // if the status and resource_id are defined, add this to the infra state
       setInfraState((curr) => {
         let currCopy: TFState = {
           last_updated: curr.last_updated,
@@ -648,18 +675,18 @@ const StyledInfraObject = styled.div`
   position: relative;
 `;
 
-const InfraHeader = styled.div`
+const InfraHeader = styled.div<{ is_clickable: boolean }>`
   font-size: 13px;
   font-weight: 500;
   justify-content: space-between;
   padding: 15px;
   display: flex;
   align-items: center;
-  cursor: pointer;
+  cursor: ${(props) => (props.is_clickable ? "pointer" : "default")};
   height: 50px;
 
   :hover {
-    background: #ffffff12;
+    background: ${(props) => (props.is_clickable ? "#ffffff12" : "none")};
   }
 
   .expand-icon {
@@ -695,8 +722,9 @@ const LoadingFill = styled.div<{ width: string; status: string }>`
   animation-direction: alternate;
 `;
 
-const ExpandIconContainer = styled.div`
+const ExpandIconContainer = styled.div<{ hidden: boolean }>`
   width: 30px;
   margin-left: 10px;
   padding-top: 2px;
+  display: ${(props) => (props.hidden ? "none" : "inline")};
 `;

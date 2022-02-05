@@ -80,33 +80,6 @@ const overwriteAWSIntegration = baseApi<
   return `/api/projects/${pathParams.project_id}/integrations/aws/overwrite`;
 });
 
-const createDOCR = baseApi<
-  {
-    do_integration_id: number;
-    docr_name: string;
-    docr_subscription_tier: string;
-  },
-  {
-    project_id: number;
-  }
->("POST", (pathParams) => {
-  return `/api/projects/${pathParams.project_id}/provision/docr`;
-});
-
-const createDOKS = baseApi<
-  {
-    do_integration_id: number;
-    doks_name: string;
-    do_region: string;
-    issuer_email: string;
-  },
-  {
-    project_id: number;
-  }
->("POST", (pathParams) => {
-  return `/api/projects/${pathParams.project_id}/provision/doks`;
-});
-
 const createEmailVerification = baseApi<{}, {}>("POST", (pathParams) => {
   return `/api/email/verify/initiate`;
 });
@@ -176,31 +149,6 @@ const createGCPIntegration = baseApi<
   }
 >("POST", (pathParams) => {
   return `/api/projects/${pathParams.project_id}/integrations/gcp`;
-});
-
-const createGCR = baseApi<
-  {
-    gcp_integration_id: number;
-  },
-  {
-    project_id: number;
-  }
->("POST", (pathParams) => {
-  return `/api/projects/${pathParams.project_id}/provision/gcr`;
-});
-
-const createGKE = baseApi<
-  {
-    gcp_region: string;
-    gcp_integration_id: number;
-    gke_name: string;
-    issuer_email: string;
-  },
-  {
-    project_id: number;
-  }
->("POST", (pathParams) => {
-  return `/api/projects/${pathParams.project_id}/provision/gke`;
 });
 
 const createInvite = baseApi<
@@ -1109,28 +1057,6 @@ const logInUser = baseApi<{
 
 const logOutUser = baseApi("POST", "/api/logout");
 
-const provisionECR = baseApi<
-  {
-    ecr_name: string;
-    aws_integration_id: number;
-  },
-  { id: number }
->("POST", (pathParams) => {
-  return `/api/projects/${pathParams.id}/provision/ecr`;
-});
-
-const provisionEKS = baseApi<
-  {
-    eks_name: string;
-    aws_integration_id: number;
-    machine_type: string;
-    issuer_email: string;
-  },
-  { id: number }
->("POST", (pathParams) => {
-  return `/api/projects/${pathParams.id}/provision/eks`;
-});
-
 const registerUser = baseApi<{
   email: string;
   password: string;
@@ -1622,15 +1548,11 @@ export default {
   getGCPIntegration,
   createAWSIntegration,
   overwriteAWSIntegration,
-  createDOCR,
-  createDOKS,
   createEmailVerification,
   createEnvironment,
   deleteEnvironment,
   listEnvironments,
   createGCPIntegration,
-  createGCR,
-  createGKE,
   createInvite,
   createNamespace,
   createPasswordReset,
@@ -1724,8 +1646,6 @@ export default {
   listConfigMaps,
   logInUser,
   logOutUser,
-  provisionECR,
-  provisionEKS,
   registerUser,
   rollbackChart,
   uninstallTemplate,

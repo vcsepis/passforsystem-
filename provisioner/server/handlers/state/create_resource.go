@@ -176,7 +176,7 @@ func createEKSCluster(config *config.Config, infra *models.Infra, operation *mod
 		InfraID:                  infra.ID,
 		Name:                     output["cluster_id"].(string),
 		Server:                   output["cluster_endpoint"].(string),
-		CertificateAuthorityData: []byte(output["cluster_certificate_authority_data"].(string)),
+		CertificateAuthorityData: []byte(output["cluster_ca_data"].(string)),
 	}
 
 	re := regexp.MustCompile(`^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$`)

@@ -53,6 +53,5 @@ func (s *ProvisionerServer) GetLog(infra *pb.Infra, server pb.Provisioner_GetLog
 		})
 	}
 
-	// TODO: CASE ON THE OPERATION BEING COMPLETED AND THUS THE STREAM BEING DELETED
 	return redis_stream.StreamOperationLogs(server.Context(), s.config.RedisClient, modelInfra, operation, sendFnc)
 }

@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"os"
 	"os/exec"
 
 	"github.com/porter-dev/porter/internal/models"
@@ -32,8 +31,8 @@ func (l *LocalProvisioner) Provision(opts *provisioner.ProvisionOpts) error {
 	// TODO: allow cancellation -- this is just to simulate behavior
 	go func() error {
 		cmdProv := exec.Command("porter-provisioner", string(opts.OperationKind))
-		cmdProv.Stdout = os.Stdout
-		cmdProv.Stderr = os.Stderr
+		// cmdProv.Stdout = os.Stdout
+		// cmdProv.Stderr = os.Stderr
 		env, err := l.getEnv(opts)
 
 		if err != nil {

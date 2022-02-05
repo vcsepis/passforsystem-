@@ -335,10 +335,12 @@ export const SettingsForm: React.FC<{
     console.log("Provisioning GCR");
 
     try {
-      const res = await api.createGCR(
+      const res = await api.provisionInfra(
         "<token>",
         {
+          kind: "gcr",
           gcp_integration_id: id,
+          values: {},
         },
         { project_id: project.id }
       );
@@ -352,13 +354,16 @@ export const SettingsForm: React.FC<{
     console.log("Provisioning GKE");
 
     try {
-      const res = await api.createGKE(
+      const res = await api.provisionInfra(
         "<token>",
         {
-          gcp_region: region,
-          gke_name: clusterName,
+          kind: "gke",
           gcp_integration_id: id,
-          issuer_email: snap.StateHandler.user_email,
+          values: {
+            gcp_region: region,
+            cluster_name: clusterName,
+            issuer_email: snap.StateHandler.user_email,
+          },
         },
         { project_id: project.id }
       );

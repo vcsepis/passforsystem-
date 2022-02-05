@@ -29,7 +29,7 @@ const DeployList: React.FunctionComponent<Props> = ({
   const [selectedOperation, setSelectedOperation] = useState<Operation>(null);
   const { currentProject, setCurrentError } = useContext(Context);
 
-  useEffect(() => {
+  const refreshOperationList = () => {
     api
       .listOperations(
         "<token>",
@@ -53,6 +53,10 @@ const DeployList: React.FunctionComponent<Props> = ({
         setCurrentError(err.response?.data?.error);
         setIsLoading(false);
       });
+  };
+
+  useEffect(() => {
+    refreshOperationList();
   }, [currentProject, infra, infra?.latest_operation?.id]);
 
   const { newWebsocket, openWebsocket, closeWebsocket } = useWebsockets();
@@ -62,16 +66,7 @@ const DeployList: React.FunctionComponent<Props> = ({
 
     // if the status is operation completed, mark that operation as completed
     if (status == "OPERATION_COMPLETED") {
-      let newOpList = [...operationList];
-
-      // find the corresponding operation and update it
-      newOpList.forEach((op, i) => {
-        if (op.id == infra.latest_operation.id) {
-          newOpList[i].status = "completed";
-        }
-      });
-
-      setOperationList(newOpList);
+      refreshOperationList();
     }
   };
 
@@ -112,7 +107,7 @@ const DeployList: React.FunctionComponent<Props> = ({
 
     // if the latest_operation is in progress, open a websocket
     if (operationList[0].status === "starting") {
-      const websocketID = operationList[0].id;
+      const websocketID = operationList[0].id + "_state";
 
       setupOperationWebsocket(websocketID);
 

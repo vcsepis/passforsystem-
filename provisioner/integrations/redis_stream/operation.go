@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	redis "github.com/go-redis/redis/v8"
@@ -110,51 +111,117 @@ func StreamOperationLogs(
 	operation *models.Operation,
 	send LogWriter,
 ) error {
-	lastID := "0-0"
 	streamName := getLogsStreamName(infra, operation)
 
-	for {
-		xstream, err := client.XRead(
-			ctx,
-			&redis.XReadArgs{
-				Streams: []string{streamName, lastID},
-				Block:   0,
-			},
-		).Result()
+	errorchan := make(chan error)
+	redisCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-		if err != nil {
-			return err
-		}
+	var wg sync.WaitGroup
+	wg.Add(3)
 
-		messages := xstream[0].Messages
-		lastID = messages[len(messages)-1].ID
+	go func() {
+		wg.Wait()
+		close(errorchan)
+	}()
 
-		for _, msg := range messages {
-			dataInter, ok := msg.Values["log"]
-
-			if !ok {
-				continue
-			}
-
-			dataString, ok := dataInter.(string)
-
-			if !ok {
-				continue
-			}
-
-			err = send(dataString)
-
-			if err != nil {
-				return err
-			}
-		}
+	go func() {
+		defer wg.Done()
 
 		select {
 		case <-ctx.Done():
-			return nil
-		default:
+			errorchan <- nil
+		case <-redisCtx.Done():
+			errorchan <- nil
 		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		// check intermittently that the stream still exists -- it may have been
+		// cleaned up automatically
+		failedCount := 0
+		for {
+			x, err := client.Exists(
+				context.Background(),
+				streamName,
+			).Result()
+
+			// if the stream does not exist, increment the failed counter
+			if x == 0 || err != nil {
+				failedCount++
+			} else {
+				failedCount = 0
+			}
+
+			if failedCount >= 2 {
+				errorchan <- nil
+				return
+			}
+
+			// wait 5 seconds in between pings
+			time.Sleep(5 * time.Second)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		lastID := "0-0"
+
+		for {
+			if redisCtx.Err() != nil {
+				errorchan <- nil
+				return
+			}
+
+			xstream, err := client.XRead(
+				redisCtx,
+				&redis.XReadArgs{
+					Streams: []string{streamName, lastID},
+					Block:   0,
+				},
+			).Result()
+
+			if err != nil {
+				errorchan <- err
+				return
+			}
+
+			messages := xstream[0].Messages
+			lastID = messages[len(messages)-1].ID
+
+			for _, msg := range messages {
+				dataInter, ok := msg.Values["log"]
+
+				if !ok {
+					continue
+				}
+
+				dataString, ok := dataInter.(string)
+
+				if !ok {
+					continue
+				}
+
+				err = send(dataString)
+
+				if err != nil {
+					errorchan <- err
+					return
+				}
+			}
+		}
+	}()
+
+	var err error
+
+	for err = range errorchan {
+		cancel()
 	}
+
+	return err
 }
 
 type StateUpdateWriter func(update *types.TFResourceState) error
@@ -166,59 +233,125 @@ func StreamStateUpdate(
 	operation *models.Operation,
 	send StateUpdateWriter,
 ) error {
-	lastID := "0-0"
 	streamName := getStateStreamName(infra, operation)
 
-	for {
-		xstream, err := client.XRead(
-			ctx,
-			&redis.XReadArgs{
-				Streams: []string{streamName, lastID},
-				Block:   0,
-			},
-		).Result()
+	errorchan := make(chan error)
+	redisCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-		if err != nil {
-			return err
-		}
+	var wg sync.WaitGroup
+	wg.Add(3)
 
-		messages := xstream[0].Messages
-		lastID = messages[len(messages)-1].ID
+	go func() {
+		wg.Wait()
+		close(errorchan)
+	}()
 
-		for _, msg := range messages {
-			stateData := &types.TFResourceState{}
-
-			dataInter, ok := msg.Values["data"]
-
-			if !ok {
-				continue
-			}
-
-			dataString, ok := dataInter.(string)
-
-			if !ok {
-				continue
-			}
-
-			err := json.Unmarshal([]byte(dataString), stateData)
-
-			if err != nil {
-				continue
-			}
-
-			err = send(stateData)
-
-			if err != nil {
-				return err
-			}
-		}
+	go func() {
+		defer wg.Done()
 
 		select {
 		case <-ctx.Done():
-			return nil
-		default:
+			errorchan <- nil
+		case <-redisCtx.Done():
+			errorchan <- nil
 		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		// check intermittently that the stream still exists -- it may have been
+		// cleaned up automatically
+		failedCount := 0
+		for {
+			x, err := client.Exists(
+				context.Background(),
+				streamName,
+			).Result()
+
+			// if the stream does not exist, increment the failed counter
+			if x == 0 || err != nil {
+				failedCount++
+			} else {
+				failedCount = 0
+			}
+
+			if failedCount >= 2 {
+				errorchan <- nil
+				return
+			}
+
+			// wait 5 seconds in between pings
+			time.Sleep(5 * time.Second)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		lastID := "0-0"
+
+		for {
+			if redisCtx.Err() != nil {
+				errorchan <- nil
+				return
+			}
+
+			xstream, err := client.XRead(
+				ctx,
+				&redis.XReadArgs{
+					Streams: []string{streamName, lastID},
+					Block:   0,
+				},
+			).Result()
+
+			if err != nil {
+				errorchan <- err
+				return
+			}
+
+			messages := xstream[0].Messages
+			lastID = messages[len(messages)-1].ID
+
+			for _, msg := range messages {
+				stateData := &types.TFResourceState{}
+
+				dataInter, ok := msg.Values["data"]
+
+				if !ok {
+					continue
+				}
+
+				dataString, ok := dataInter.(string)
+
+				if !ok {
+					continue
+				}
+
+				err := json.Unmarshal([]byte(dataString), stateData)
+
+				if err != nil {
+					continue
+				}
+
+				err = send(stateData)
+
+				if err != nil {
+					errorchan <- err
+					return
+				}
+			}
+		}
+	}()
+
+	var err error
+
+	for err = range errorchan {
+		cancel()
 	}
+
+	return err
 }
 
 func getStateStreamName(

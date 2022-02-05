@@ -196,12 +196,15 @@ export const SettingsForm: React.FC<{
     console.log("Provisioning DOCR...");
     try {
       return await api
-        .createDOCR(
+        .provisionInfra(
           "<token>",
           {
+            kind: "docr",
             do_integration_id: integrationId,
-            docr_name: project.name,
-            docr_subscription_tier: tier,
+            values: {
+              docr_name: project.name,
+              docr_subscription_tier: tier,
+            },
           },
           {
             project_id: project.id,
@@ -221,13 +224,16 @@ export const SettingsForm: React.FC<{
     console.log("Provisioning DOKS...");
     try {
       return await api
-        .createDOKS(
+        .provisionInfra(
           "<token>",
           {
+            kind: "doks",
             do_integration_id: integrationId,
-            doks_name: clusterName,
-            do_region: region,
-            issuer_email: snap.StateHandler.user_email,
+            values: {
+              cluster_name: clusterName,
+              do_region: region,
+              issuer_email: snap.StateHandler.user_email,
+            },
           },
           {
             project_id: project.id,

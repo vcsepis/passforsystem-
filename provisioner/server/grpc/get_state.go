@@ -59,6 +59,5 @@ func (s *ProvisionerServer) GetStateUpdate(infra *pb.Infra, server pb.Provisione
 		return server.Send(res)
 	}
 
-	// TODO: CASE ON THE OPERATION BEING COMPLETED AND THUS THE STREAM BEING DELETED
 	return redis_stream.StreamStateUpdate(server.Context(), s.config.RedisClient, modelInfra, operation, sendFnc)
 }
