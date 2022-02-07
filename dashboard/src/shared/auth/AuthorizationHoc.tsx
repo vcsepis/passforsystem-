@@ -3,7 +3,7 @@ import { AuthPolicyContext } from "./AuthPolicyContext";
 import { isAuthorized } from "./authorization-helpers";
 import { ScopeType, Verbs } from "./types";
 import useAuth from "./useAuth";
-import { AuthContextActions } from "./AuthContext";
+import { AuthContextActions, AuthContextType } from "./AuthContext";
 
 export const GuardedComponent = <ComponentProps extends object>(
   scope: ScopeType,
@@ -19,13 +19,14 @@ export const GuardedComponent = <ComponentProps extends object>(
   return null;
 };
 
-export type WithAuthProps = AuthContextActions & {
-  isAuthorized: (
-    scope: ScopeType,
-    resource: string | Array<string>,
-    verb: Verbs | Array<Verbs>
-  ) => boolean;
-};
+export type WithAuthProps = AuthContextActions &
+  AuthContextType & {
+    isAuthorized: (
+      scope: ScopeType,
+      resource: string | Array<string>,
+      verb: Verbs | Array<Verbs>
+    ) => boolean;
+  };
 
 export function withAuth<P>(
   // Then we need to type the incoming component.
@@ -38,18 +39,9 @@ export function withAuth<P>(
   })`;
 
   const C = (props: P) => {
-    const { isAuth, logout, authenticate, login, verifyEmail } = useAuth();
+    const { isAuth, ...auth } = useAuth();
     // At this point, the props being passed in are the original props the component expects.
-    return (
-      <WrappedComponent
-        {...props}
-        isAuthorized={isAuth}
-        authenticate={authenticate}
-        logout={logout}
-        login={login}
-        verifyEmail={verifyEmail}
-      />
-    );
+    return <WrappedComponent {...props} isAuthorized={isAuth} {...auth} />;
   };
 
   C.displayName = displayName;
