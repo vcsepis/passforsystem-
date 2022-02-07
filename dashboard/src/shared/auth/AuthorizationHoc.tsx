@@ -2,6 +2,7 @@ import React, { useCallback, useContext } from "react";
 import { AuthPolicyContext } from "./AuthPolicyContext";
 import { isAuthorized } from "./authorization-helpers";
 import { ScopeType, Verbs } from "./types";
+import useAuth from "./useAuth";
 
 export const GuardedComponent = <ComponentProps extends object>(
   scope: ScopeType,
@@ -23,6 +24,8 @@ export type WithAuthProps = {
     resource: string | Array<string>,
     verb: Verbs | Array<Verbs>
   ) => boolean;
+  authenticate: () => Promise<void>;
+  logout: () => Promise<boolean>;
 };
 
 export function withAuth<P>(
@@ -36,15 +39,16 @@ export function withAuth<P>(
   })`;
 
   const C = (props: P) => {
-    const authPolicyContext = useContext(AuthPolicyContext);
-
-    const isAuth = useCallback(
-      (scope: ScopeType, resource: string, verb: Verbs | Array<Verbs>) =>
-        isAuthorized(authPolicyContext.currentPolicy, scope, resource, verb),
-      [authPolicyContext.currentPolicy]
-    );
+    const [isAuth, logout, authenticate] = useAuth();
     // At this point, the props being passed in are the original props the component expects.
-    return <WrappedComponent {...props} isAuthorized={isAuth} />;
+    return (
+      <WrappedComponent
+        {...props}
+        isAuthorized={isAuth}
+        authenticate={authenticate}
+        logout={logout}
+      />
+    );
   };
 
   C.displayName = displayName;

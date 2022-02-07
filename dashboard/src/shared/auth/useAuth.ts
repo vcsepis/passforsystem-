@@ -2,20 +2,36 @@ import { useCallback, useContext } from "react";
 import { AuthPolicyContext } from "./AuthPolicyContext";
 import { isAuthorized } from "./authorization-helpers";
 import { ScopeType, Verbs } from "./types";
+import { AuthContext } from "./AuthContext";
 
-const useAuth = () => {
+type IsAuthType = (
+  scope: ScopeType,
+  resource: string | string[],
+  verb: Verbs | Array<Verbs>
+) => boolean 
+
+type UseAuthReturnType = [
+  IsAuthType,
+  () => Promise<boolean>,
+  () => Promise<void>,
+]
+
+const useAuth = (): UseAuthReturnType => {
+  
   const authPolicyContext = useContext(AuthPolicyContext);
+  const authContext = useContext(AuthContext)
 
-  const isAuth = useCallback(
+  const isAuth = useCallback<IsAuthType>(
     (
-      scope: ScopeType,
-      resource: string | string[],
-      verb: Verbs | Array<Verbs>
+      scope,
+      resource,
+      verb
     ) => isAuthorized(authPolicyContext.currentPolicy, scope, resource, verb),
     [authPolicyContext.currentPolicy]
   );
 
-  return [isAuth];
+
+  return [isAuth, authContext.logout, authContext.authenticate];
 };
 
 export default useAuth;

@@ -4,16 +4,15 @@ import logo from "assets/logo.png";
 
 import api from "shared/api";
 import { Context } from "shared/Context";
+import { withAuth, WithAuthProps } from "shared/auth/AuthorizationHoc";
 
-type PropsType = {
-  handleLogout: () => void;
-};
+type PropsType = WithAuthProps & {};
 
 type StateType = {
   submitted: boolean;
 };
 
-export default class VerifyEmail extends Component<PropsType, StateType> {
+class VerifyEmail extends Component<PropsType, StateType> {
   state = {
     submitted: false,
   };
@@ -76,7 +75,7 @@ export default class VerifyEmail extends Component<PropsType, StateType> {
             {formSection}
             <Helper>
               Want to use a different email?
-              <Link onClick={this.props.handleLogout}>Log out</Link>
+              <Link onClick={this.props.logout}>Log out</Link>
             </Helper>
           </FormWrapper>
         </LoginPanel>
@@ -96,6 +95,8 @@ export default class VerifyEmail extends Component<PropsType, StateType> {
 }
 
 VerifyEmail.contextType = Context;
+
+export default withAuth(VerifyEmail);
 
 const Buffer = styled.div`
   width: 100%;

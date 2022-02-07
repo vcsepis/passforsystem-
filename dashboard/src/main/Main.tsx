@@ -95,21 +95,6 @@ export default class Main extends Component<PropsType, StateType> {
       .catch((err) => this.setState({ isLoggedIn: false, loading: false }));
   };
 
-  handleLogOut = () => {
-    // Clears local storage for proper rendering of clusters
-    // Attempt user logout
-    api
-      .logOutUser("<token>", {}, {})
-      .then(() => {
-        this.context.clearContext();
-        this.setState({ isLoggedIn: false, initialized: true });
-        localStorage.clear();
-      })
-      .catch((err) =>
-        this.context.setCurrentError(err.response?.data.errors[0])
-      );
-  };
-
   renderMain = () => {
     if (this.state.loading) {
       return <Loading />;
@@ -126,7 +111,7 @@ export default class Main extends Component<PropsType, StateType> {
           <Route
             path="/"
             render={() => {
-              return <VerifyEmail handleLogout={this.handleLogOut} />;
+              return <VerifyEmail />;
             }}
           />
         </Switch>
@@ -139,7 +124,7 @@ export default class Main extends Component<PropsType, StateType> {
           path="/login"
           render={() => {
             if (!this.state.isLoggedIn) {
-              return <Login authenticate={this.authenticate} />;
+              return <Login />;
             } else {
               return <Redirect to="/" />;
             }

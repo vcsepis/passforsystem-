@@ -3,7 +3,7 @@ import React, { Component } from "react";
 import { ContextProvider } from "../shared/Context";
 import Main from "./Main";
 import { RouteComponentProps, withRouter } from "react-router";
-import AuthProvider from "shared/auth/AuthContext";
+import { AuthProvider } from "shared/auth/AuthContext";
 import MainWrapperErrorBoundary from "shared/error_handling/MainWrapperErrorBoundary";
 
 type PropsType = RouteComponentProps & {};

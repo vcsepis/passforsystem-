@@ -12,7 +12,7 @@ export const AuthPolicyContext = React.createContext<AuthPolicyContext>(
   {} as AuthPolicyContext
 );
 
-const AuthProvider: React.FC = ({ children }) => {
+const AuthPolicyProvider: React.FC = ({ children }) => {
   const { user, currentProject } = useContext(Context);
   const [currentPolicy, setCurrentPolicy] = useState(null);
 
@@ -50,4 +50,4 @@ const AuthProvider: React.FC = ({ children }) => {
   );
 };
 
-export default AuthProvider;
+export default AuthPolicyProvider;
