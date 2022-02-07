@@ -65,33 +65,18 @@ class Login extends Component<PropsType, StateType> {
 
   handleLogin = (): void => {
     let { email, password } = this.state;
-    let { authenticate } = this.props;
-    let { setUser } = this.context;
 
     // Check for valid input
     if (!emailRegex.test(email)) {
       this.setState({ emailError: true });
     } else {
       // Attempt user login
-      api
-        .logInUser(
-          "",
-          {
-            email: email,
-            password: password,
-          },
-          {}
-        )
-        .then((res) => {
-          // TODO: case and set credential error
-          if (res?.data?.redirect) {
-            window.location.href = res.data.redirect;
-          } else {
-            setUser(res?.data?.id, res?.data?.email);
-            authenticate();
-          }
-        })
-        .catch((err) => this.context.setCurrentError(err.response.data.error));
+      this.props.login(email, password).then((res) => {
+        // TODO: case and set credential error
+        if (res?.redirect) {
+          window.location.href = res?.redirect;
+        }
+      });
     }
   };
 

@@ -10,6 +10,7 @@ Cohere.init(process.env.COHERE_API_KEY);
 export type AuthContextActions = {
   logout: () => Promise<boolean>;
   authenticate: () => Promise<void>;
+  login: (email: string, password: string) => Promise<any>;
 };
 
 export type AuthContextType = {
@@ -19,13 +20,16 @@ export type AuthContextType = {
   isLoadingAuth: boolean;
 };
 
+const mockFunction: () => any = () => console.log("unset");
+
 export const AuthContext = createContext<AuthContextType & AuthContextActions>({
   isLoggedIn: false,
   isEmailVerified: false,
   initialized: false,
   isLoadingAuth: true,
-  logout: null,
-  authenticate: null,
+  logout: mockFunction,
+  authenticate: mockFunction,
+  login: mockFunction,
 });
 
 export const AuthProvider: React.FC<{}> = ({ children }) => {
@@ -96,6 +100,30 @@ export const AuthProvider: React.FC<{}> = ({ children }) => {
     } catch (err) {}
   };
 
+  const login = async (email: string, password: string) => {
+    try {
+      const res = await api
+        .logInUser(
+          "",
+          {
+            email: email,
+            password: password,
+          },
+          {}
+        )
+        .then((res) => res?.data);
+
+      if (!res?.data?.redirect) {
+        setUser(res?.id, res?.email);
+        authenticate();
+      }
+
+      return res;
+    } catch (err) {
+      setCurrentError(err?.response?.data?.error);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -105,6 +133,7 @@ export const AuthProvider: React.FC<{}> = ({ children }) => {
         isLoadingAuth: isLoading,
         logout,
         authenticate,
+        login,
       }}
     >
       <AuthPolicyProvider>{children}</AuthPolicyProvider>

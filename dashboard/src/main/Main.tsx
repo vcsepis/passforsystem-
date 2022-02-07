@@ -186,7 +186,6 @@ export default class Main extends Component<PropsType, StateType> {
                   currentProject={this.context.currentProject}
                   currentCluster={this.context.currentCluster}
                   currentRoute={baseRoute as PorterUrl}
-                  logOut={this.handleLogOut}
                 />
               );
             } else {

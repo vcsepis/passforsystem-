@@ -47,7 +47,6 @@ const GuardedIntegrations = fakeGuardedRoute("integrations", "", [
 
 type PropsType = RouteComponentProps &
   WithAuthProps & {
-    logOut: () => void;
     currentProject: ProjectType;
     currentCluster: ClusterType;
     currentRoute: PorterUrl;
@@ -407,7 +406,6 @@ class Home extends Component<PropsType, StateType> {
                     closeForm={() => this.setState({ showWelcomeForm: false })}
                   />
                   <Navbar
-                    logOut={this.props.logOut}
                     currentView={this.props.currentRoute} // For form feedback
                   />
                 </>
@@ -417,7 +415,6 @@ class Home extends Component<PropsType, StateType> {
 
         <ViewWrapper id="HomeViewWrapper">
           <Navbar
-            logOut={this.props.logOut}
             currentView={this.props.currentRoute} // For form feedback
           />
 

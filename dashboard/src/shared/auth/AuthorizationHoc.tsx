@@ -3,6 +3,7 @@ import { AuthPolicyContext } from "./AuthPolicyContext";
 import { isAuthorized } from "./authorization-helpers";
 import { ScopeType, Verbs } from "./types";
 import useAuth from "./useAuth";
+import { AuthContextActions } from "./AuthContext";
 
 export const GuardedComponent = <ComponentProps extends object>(
   scope: ScopeType,
@@ -18,14 +19,12 @@ export const GuardedComponent = <ComponentProps extends object>(
   return null;
 };
 
-export type WithAuthProps = {
+export type WithAuthProps = AuthContextActions & {
   isAuthorized: (
     scope: ScopeType,
     resource: string | Array<string>,
     verb: Verbs | Array<Verbs>
   ) => boolean;
-  authenticate: () => Promise<void>;
-  logout: () => Promise<boolean>;
 };
 
 export function withAuth<P>(
@@ -39,7 +38,7 @@ export function withAuth<P>(
   })`;
 
   const C = (props: P) => {
-    const [isAuth, logout, authenticate] = useAuth();
+    const [isAuth, logout, authenticate, login] = useAuth();
     // At this point, the props being passed in are the original props the component expects.
     return (
       <WrappedComponent
@@ -47,6 +46,7 @@ export function withAuth<P>(
         isAuthorized={isAuth}
         authenticate={authenticate}
         logout={logout}
+        login={login}
       />
     );
   };

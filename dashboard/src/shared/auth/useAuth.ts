@@ -2,7 +2,7 @@ import { useCallback, useContext } from "react";
 import { AuthPolicyContext } from "./AuthPolicyContext";
 import { isAuthorized } from "./authorization-helpers";
 import { ScopeType, Verbs } from "./types";
-import { AuthContext } from "./AuthContext";
+import { AuthContext, AuthContextActions } from "./AuthContext";
 
 type IsAuthType = (
   scope: ScopeType,
@@ -12,8 +12,9 @@ type IsAuthType = (
 
 type UseAuthReturnType = [
   IsAuthType,
-  () => Promise<boolean>,
-  () => Promise<void>,
+  AuthContextActions["logout"],
+  AuthContextActions["authenticate"],
+  AuthContextActions["login"]
 ]
 
 const useAuth = (): UseAuthReturnType => {
@@ -31,7 +32,7 @@ const useAuth = (): UseAuthReturnType => {
   );
 
 
-  return [isAuth, authContext.logout, authContext.authenticate];
+  return [isAuth, authContext.logout, authContext.authenticate, authContext.login];
 };
 
 export default useAuth;

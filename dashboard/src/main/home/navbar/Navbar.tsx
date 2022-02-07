@@ -8,7 +8,6 @@ import { withAuth, WithAuthProps } from "shared/auth/AuthorizationHoc";
 import { Select } from "@material-ui/core";
 
 type PropsType = WithAuthProps & {
-  logOut: () => void;
   currentView: string;
 };
 
@@ -45,7 +44,7 @@ class Navbar extends Component<PropsType, StateType> {
               </SettingsIcon>
               Account Settings
             </UserDropdownButton>
-            <UserDropdownButton onClick={this.props.logOut}>
+            <UserDropdownButton onClick={this.props.logout}>
               <i className="material-icons">keyboard_return</i> Log Out
               {version !== "production" && <VersionTag>{version}</VersionTag>}
             </UserDropdownButton>
