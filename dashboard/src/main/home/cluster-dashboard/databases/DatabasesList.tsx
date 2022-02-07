@@ -33,7 +33,7 @@ const DatabasesList = () => {
   const { url } = useRouteMatch();
   const [isLoading, setIsLoading] = useState(true);
   const [databases, setDatabases] = useState<DatabaseObject[]>([]);
-  const [isAuth] = useAuth();
+  const { isAuth } = useAuth();
   const { pushQueryParams } = useRouting();
 
   useEffect(() => {

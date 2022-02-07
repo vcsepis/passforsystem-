@@ -53,7 +53,7 @@ const SettingsSection: React.FC<PropsType> = ({
   const { currentCluster, currentProject, setCurrentError } = useContext(
     Context
   );
-  const [isAuthorized] = useAuth();
+  const { isAuth: isAuthorized } = useAuth();
 
   useEffect(() => {
     let isSubscribed = true;

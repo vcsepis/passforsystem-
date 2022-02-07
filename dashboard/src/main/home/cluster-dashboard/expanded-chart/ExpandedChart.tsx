@@ -77,7 +77,7 @@ const ExpandedChart: React.FC<Props> = (props) => {
   const [newestImage, setNewestImage] = useState<string>(null);
   const [isLoadingChartData, setIsLoadingChartData] = useState<boolean>(true);
   const [showRepoTooltip, setShowRepoTooltip] = useState(false);
-  const [isAuthorized] = useAuth();
+  const { isAuth: isAuthorized } = useAuth();
   const [fullScreenLogs, setFullScreenLogs] = useState<boolean>(false);
 
   const {

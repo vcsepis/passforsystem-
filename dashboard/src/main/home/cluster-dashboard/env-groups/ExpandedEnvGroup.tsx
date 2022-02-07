@@ -72,7 +72,7 @@ export const ExpandedEnvGroupFC = ({
     setCurrentOverlay,
     setCurrentError,
   } = useContext(Context);
-  const [isAuthorized] = useAuth();
+  const { isAuth: isAuthorized } = useAuth();
 
   const [currentTab, setCurrentTab] = useState("variables-editor");
   const [isDeleting, setIsDeleting] = useState(false);
@@ -380,7 +380,7 @@ const EnvGroupVariablesEditor = ({
   onChange: (newValues: any) => void;
   handleUpdateValues: () => void;
 }) => {
-  const [isAuthorized] = useAuth();
+  const { isAuth: isAuthorized } = useAuth();
 
   return (
     <TabWrapper>
@@ -427,7 +427,7 @@ const EnvGroupSettings = ({
   handleDeleteEnvGroup: () => void;
 }) => {
   const { setCurrentOverlay } = useContext(Context);
-  const [isAuthorized] = useAuth();
+  const { isAuth: isAuthorized } = useAuth();
 
   const canDelete = useMemo(() => {
     return envGroup?.applications.length === 0;

@@ -42,7 +42,7 @@ export const Dashboard: React.FunctionComponent = () => {
     currentProject.preview_envs_enabled ? "preview_environments" : "nodes"
   );
   const [currentTabOptions, setCurrentTabOptions] = useState(tabOptions);
-  const [isAuthorized] = useAuth();
+  const { isAuth: isAuthorized } = useAuth();
   const location = useLocation();
 
   const context = useContext(Context);

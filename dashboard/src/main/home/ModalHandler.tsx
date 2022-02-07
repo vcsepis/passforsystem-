@@ -22,7 +22,7 @@ import ConnectToDatabaseInstructionsModal from "./modals/ConnectToDatabaseInstru
 const ModalHandler: React.FC<{
   setRefreshClusters: (x: boolean) => void;
 }> = ({ setRefreshClusters }) => {
-  const [isAuth] = useAuth();
+  const { isAuth } = useAuth();
   const {
     currentModal,
     setCurrentModal,

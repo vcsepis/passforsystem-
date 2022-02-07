@@ -69,7 +69,7 @@ export const NamespaceList: React.FunctionComponent = () => {
     setCurrentModal("DeleteNamespaceModal", namespace);
   };
 
-  const [isAuthorized] = useAuth();
+  const { isAuth: isAuthorized } = useAuth();
 
   const isAvailableForDeletion = (namespaceName: string) => {
     // Only the namespaces that doesn't start with kube- or has by name default will be

@@ -42,7 +42,7 @@ const CreateDatabaseForm = () => {
   const [submitStatus, setSubmitStatus] = useState("");
   const [availableNamespaces, setAvailableNamespaces] = useState([]);
   const [selectedNamespace, setSelectedNamespace] = useState("default");
-  const [isAuthorized] = useAuth();
+  const { isAuth: isAuthorized } = useAuth();
 
   const { pushFiltered } = useRouting();
 
