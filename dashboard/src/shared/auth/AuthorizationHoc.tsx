@@ -33,7 +33,7 @@ export function withAuth<P>(
   // This creates a union type of whatever the component
   // already accepts AND our extraInfo prop
   WrappedComponent: React.ComponentType<P & WithAuthProps>
-) {
+): React.FC<Omit<P, keyof WithAuthProps>> {
   const displayName = `withAuth(${
     WrappedComponent.displayName || WrappedComponent.name
   })`;
