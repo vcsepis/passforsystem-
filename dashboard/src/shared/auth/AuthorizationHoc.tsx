@@ -38,7 +38,7 @@ export function withAuth<P>(
   })`;
 
   const C = (props: P) => {
-    const [isAuth, logout, authenticate, login] = useAuth();
+    const [isAuth, logout, authenticate, login, verifyEmail] = useAuth();
     // At this point, the props being passed in are the original props the component expects.
     return (
       <WrappedComponent
@@ -47,6 +47,7 @@ export function withAuth<P>(
         authenticate={authenticate}
         logout={logout}
         login={login}
+        verifyEmail={verifyEmail}
       />
     );
   };

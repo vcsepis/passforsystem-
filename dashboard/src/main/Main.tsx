@@ -134,7 +134,7 @@ export default class Main extends Component<PropsType, StateType> {
           path="/register"
           render={() => {
             if (!this.state.isLoggedIn) {
-              return <Register authenticate={this.authenticate} />;
+              return <Register />;
             } else {
               return <Redirect to="/" />;
             }

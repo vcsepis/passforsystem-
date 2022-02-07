@@ -14,7 +14,8 @@ type UseAuthReturnType = [
   IsAuthType,
   AuthContextActions["logout"],
   AuthContextActions["authenticate"],
-  AuthContextActions["login"]
+  AuthContextActions["login"],
+  AuthContextActions["verifyEmail"]
 ]
 
 const useAuth = (): UseAuthReturnType => {
@@ -32,7 +33,7 @@ const useAuth = (): UseAuthReturnType => {
   );
 
 
-  return [isAuth, authContext.logout, authContext.authenticate, authContext.login];
+  return [isAuth, authContext.logout, authContext.authenticate, authContext.login, authContext.verifyEmail];
 };
 
 export default useAuth;

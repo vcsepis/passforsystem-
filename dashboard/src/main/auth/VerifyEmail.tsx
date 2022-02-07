@@ -18,12 +18,9 @@ class VerifyEmail extends Component<PropsType, StateType> {
   };
 
   handleSendEmail = (): void => {
-    api
-      .createEmailVerification("", {}, {})
-      .then((res) => {
-        this.setState({ submitted: true });
-      })
-      .catch((err) => this.context.setCurrentError(err.response.data.error));
+    this.props.verifyEmail().then(() => {
+      this.setState({ submitted: true });
+    });
   };
 
   render() {

@@ -7,10 +7,9 @@ import GoogleIcon from "assets/GoogleIcon";
 import api from "shared/api";
 import { emailRegex } from "shared/regex";
 import { Context } from "shared/Context";
+import { withAuth, WithAuthProps } from "shared/auth/AuthorizationHoc";
 
-type PropsType = {
-  authenticate: () => void;
-};
+type PropsType = WithAuthProps;
 
 type StateType = {
   email: string;
@@ -23,7 +22,7 @@ type StateType = {
   hasBasic: boolean;
 };
 
-export default class Register extends Component<PropsType, StateType> {
+class Register extends Component<PropsType, StateType> {
   state = {
     email: "",
     password: "",
@@ -258,6 +257,8 @@ export default class Register extends Component<PropsType, StateType> {
 }
 
 Register.contextType = Context;
+
+export default withAuth(Register);
 
 const Footer = styled.div`
   position: absolute;

@@ -11,6 +11,7 @@ export type AuthContextActions = {
   logout: () => Promise<boolean>;
   authenticate: () => Promise<void>;
   login: (email: string, password: string) => Promise<any>;
+  verifyEmail: () => Promise<void>;
 };
 
 export type AuthContextType = {
@@ -30,6 +31,7 @@ export const AuthContext = createContext<AuthContextType & AuthContextActions>({
   logout: mockFunction,
   authenticate: mockFunction,
   login: mockFunction,
+  verifyEmail: mockFunction,
 });
 
 export const AuthProvider: React.FC<{}> = ({ children }) => {
@@ -124,6 +126,14 @@ export const AuthProvider: React.FC<{}> = ({ children }) => {
     }
   };
 
+  const verifyEmail = async () => {
+    try {
+      await api.createEmailVerification("", {}, {});
+    } catch (error) {
+      setCurrentError(error?.response?.data?.error);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -134,6 +144,7 @@ export const AuthProvider: React.FC<{}> = ({ children }) => {
         logout,
         authenticate,
         login,
+        verifyEmail,
       }}
     >
       <AuthPolicyProvider>{children}</AuthPolicyProvider>
