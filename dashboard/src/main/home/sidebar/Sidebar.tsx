@@ -327,12 +327,10 @@ class Sidebar extends Component<PropsType, StateType> {
           <br />
 
           {this.renderProjectContents()}
-          {/*
-          <DiscordButton href="https://discord.gg/34n7NN7FJ7" target="_blank">
-            <Icon src={discordLogo} />
-            Join Our Discord
+
+          <DiscordButton href="https://docs.porter.run" target="_blank">
+            Docs
           </DiscordButton>
-          */}
         </StyledSidebar>
       </>
     );
@@ -466,12 +464,13 @@ const DiscordButton = styled.a`
   left: 15px;
   border: 2px solid #ffffff44;
   border-radius: 3px;
-  color: #ffffff44;
+  color: #ffffff;
   height: 40px;
   font-family: Work Sans, sans-serif;
   font-size: 14px;
   font-weight: bold;
   cursor: pointer;
+  justify-content: center;
   :hover {
     > img {
       opacity: 60%;
