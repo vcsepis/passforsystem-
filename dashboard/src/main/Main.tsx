@@ -16,18 +16,15 @@ import CurrentError from "./CurrentError";
 import Home from "./home/Home";
 import Loading from "components/Loading";
 import { PorterUrl, PorterUrls } from "shared/routing";
+import { withAuth, WithAuthProps } from "shared/auth/AuthorizationHoc";
 
-type PropsType = {};
+type PropsType = WithAuthProps & {};
 
 type StateType = {
-  loading: boolean;
-  isLoggedIn: boolean;
-  isEmailVerified: boolean;
-  initialized: boolean;
   local: boolean;
 };
 
-export default class Main extends Component<PropsType, StateType> {
+class Main extends Component<PropsType, StateType> {
   state = {
     loading: true,
     isLoggedIn: false,
@@ -41,26 +38,6 @@ export default class Main extends Component<PropsType, StateType> {
     let urlParams = new URLSearchParams(window.location.search);
     let error = urlParams.get("error");
     error && setCurrentError(error);
-    api
-      .checkAuth("", {}, {})
-      .then((res) => {
-        if (res && res?.data) {
-          Cohere.identify(res?.data?.id, {
-            displayName: res?.data?.email,
-            email: res?.data?.email,
-          });
-          setUser(res?.data?.id, res?.data?.email);
-          this.setState({
-            isLoggedIn: true,
-            isEmailVerified: res?.data?.email_verified,
-            initialized: true,
-            loading: false,
-          });
-        } else {
-          this.setState({ isLoggedIn: false, loading: false });
-        }
-      })
-      .catch((err) => this.setState({ isLoggedIn: false, loading: false }));
 
     api
       .getMetadata("", {}, {})
@@ -72,39 +49,19 @@ export default class Main extends Component<PropsType, StateType> {
   }
 
   initialize = () => {
-    this.setState({ isLoggedIn: true, initialized: true });
     localStorage.setItem("init", "true");
   };
 
-  authenticate = () => {
-    api
-      .checkAuth("", {}, {})
-      .then((res) => {
-        if (res && res?.data) {
-          this.context.setUser(res?.data?.id, res?.data?.email);
-          this.setState({
-            isLoggedIn: true,
-            isEmailVerified: res?.data?.email_verified,
-            initialized: true,
-            loading: false,
-          });
-        } else {
-          this.setState({ isLoggedIn: false, loading: false });
-        }
-      })
-      .catch((err) => this.setState({ isLoggedIn: false, loading: false }));
-  };
-
   renderMain = () => {
-    if (this.state.loading) {
+    if (this.props.isLoadingAuth) {
       return <Loading />;
     }
 
     // if logged in but not verified, block until email verification
     if (
       !this.state.local &&
-      this.state.isLoggedIn &&
-      !this.state.isEmailVerified
+      this.props.isLoggedIn &&
+      !this.props.isEmailVerified
     ) {
       return (
         <Switch>
@@ -123,7 +80,7 @@ export default class Main extends Component<PropsType, StateType> {
         <Route
           path="/login"
           render={() => {
-            if (!this.state.isLoggedIn) {
+            if (!this.props.isLoggedIn) {
               return <Login />;
             } else {
               return <Redirect to="/" />;
@@ -133,7 +90,7 @@ export default class Main extends Component<PropsType, StateType> {
         <Route
           path="/register"
           render={() => {
-            if (!this.state.isLoggedIn) {
+            if (!this.props.isLoggedIn) {
               return <Register />;
             } else {
               return <Redirect to="/" />;
@@ -143,7 +100,7 @@ export default class Main extends Component<PropsType, StateType> {
         <Route
           path="/password/reset/finalize"
           render={() => {
-            if (!this.state.isLoggedIn) {
+            if (!this.props.isLoggedIn) {
               return <ResetPasswordFinalize />;
             } else {
               return <Redirect to="/" />;
@@ -153,7 +110,7 @@ export default class Main extends Component<PropsType, StateType> {
         <Route
           path="/password/reset"
           render={() => {
-            if (!this.state.isLoggedIn) {
+            if (!this.props.isLoggedIn) {
               return <ResetPasswordInit />;
             } else {
               return <Redirect to="/" />;
@@ -164,7 +121,7 @@ export default class Main extends Component<PropsType, StateType> {
           exact
           path="/"
           render={() => {
-            if (this.state.isLoggedIn) {
+            if (this.props.isLoggedIn) {
               return <Redirect to="/dashboard" />;
             } else {
               return <Redirect to="/login" />;
@@ -176,8 +133,8 @@ export default class Main extends Component<PropsType, StateType> {
           render={(routeProps) => {
             const baseRoute = routeProps.match.params.baseRoute;
             if (
-              this.state.isLoggedIn &&
-              this.state.initialized &&
+              this.props.isLoggedIn &&
+              this.props.initialized &&
               PorterUrls.includes(baseRoute)
             ) {
               return (
@@ -208,3 +165,5 @@ export default class Main extends Component<PropsType, StateType> {
 }
 
 Main.contextType = Context;
+
+export default withAuth(Main);
