@@ -53,6 +53,7 @@ export const AuthProvider: React.FC<{}> = ({ children }) => {
           setIsLoggedIn(true);
           setIsEmailVerified(res?.data?.email_verified);
           setInitialized(true);
+          setIsLoading(false);
         } else {
           setIsLoggedIn(false);
           setIsLoading(false);
