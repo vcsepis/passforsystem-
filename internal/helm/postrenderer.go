@@ -1,9 +1,11 @@
 package helm
 
 import (
+	"bufio"
 	"bytes"
 	"io"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 
@@ -12,8 +14,9 @@ import (
 	"github.com/porter-dev/porter/internal/models"
 	"github.com/porter-dev/porter/internal/repository"
 	"golang.org/x/oauth2"
-	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/postrender"
+	yamlDecoder "k8s.io/apimachinery/pkg/util/yaml"
+	"sigs.k8s.io/yaml"
 
 	"github.com/docker/distribution/reference"
 )
@@ -233,15 +236,15 @@ func (d *DockerSecretsPostRenderer) Run(
 	d.updatePodSpecs(secrets)
 
 	modifiedManifests = bytes.NewBuffer([]byte{})
-	encoder := yaml.NewEncoder(modifiedManifests)
-	defer encoder.Close()
 
 	for _, resource := range d.resources {
-		err = encoder.Encode(resource)
+		bytes, err := yaml.Marshal(resource)
 
 		if err != nil {
 			return nil, err
 		}
+
+		modifiedManifests.Write(bytes)
 	}
 
 	return modifiedManifests, nil
@@ -300,18 +303,27 @@ func decodeRenderedManifests(
 ) ([]resource, error) {
 	resArr := make([]resource, 0)
 
-	// use the yaml decoder to parse the multi-document yaml.
-	decoder := yaml.NewDecoder(renderedManifests)
+	reader := yamlDecoder.NewYAMLReader(bufio.NewReader(renderedManifests))
 
 	for {
-		res := make(resource)
-		err := decoder.Decode(&res)
+		bytes, err := reader.Read()
+
 		if err == io.EOF {
 			break
 		}
 
 		if err != nil {
-			return resArr, err
+			return nil, err
+		}
+
+		os.Stdout.WriteString(string(bytes))
+
+		res := make(resource)
+
+		err = yaml.Unmarshal(bytes, &res)
+
+		if err != nil {
+			return nil, err
 		}
 
 		resArr = append(resArr, res)
@@ -600,15 +612,15 @@ func (e *EnvironmentVariablePostrenderer) Run(
 	e.updatePodSpecs()
 
 	modifiedManifests = bytes.NewBuffer([]byte{})
-	encoder := yaml.NewEncoder(modifiedManifests)
-	defer encoder.Close()
 
 	for _, resource := range e.resources {
-		err = encoder.Encode(resource)
+		bytes, err := yaml.Marshal(resource)
 
 		if err != nil {
 			return nil, err
 		}
+
+		modifiedManifests.Write(bytes)
 	}
 
 	return modifiedManifests, nil
