@@ -1,0 +1,667 @@
+package cmd
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/fatih/color"
+	api "github.com/porter-dev/porter/api/client"
+	"github.com/porter-dev/porter/api/types"
+	"github.com/porter-dev/porter/cli/cmd/deploy"
+	"github.com/porter-dev/porter/cli/cmd/utils"
+	"github.com/spf13/cobra"
+	"k8s.io/client-go/util/homedir"
+)
+
+// updateCmd represents the "porter update" base command when called
+// without any subcommands
+var updateCmd = &cobra.Command{
+	Use:   "update",
+	Short: "Builds and updates a specified application given by the --app flag.",
+	Long: fmt.Sprintf(`
+%s
+
+Builds and updates a specified application given by the --app flag. For example:
+
+  %s
+
+This command will automatically build from a local path. The path can be configured via the
+--path flag. You can also overwrite the tag using the --tag flag. For example, to build from the
+local directory ~/path-to-dir with the tag "testing":
+
+  %s
+
+If the application has a remote Git repository source configured, you can specify that the remote
+Git repository should be used to build the new image by specifying "--source github". Porter will use
+the latest commit from the remote repo and branch to update an application, and will use the latest
+commit as the image tag.
+
+  %s
+
+To add new configuration or update existing configuration, you can pass a values.yaml file in via the
+--values flag. For example;
+
+  %s
+
+If your application is set up to use a Dockerfile by default, you can use a buildpack via the flag
+"--method pack". Conversely, if your application is set up to use a buildpack by default, you can
+use a Dockerfile by passing the flag "--method docker". You can specify the relative path to a Dockerfile
+in your remote Git repository. For example, if a Dockerfile is found at ./docker/prod.Dockerfile, you can
+specify it as follows:
+
+  %s
+`,
+		color.New(color.FgBlue, color.Bold).Sprintf("Help for \"porter update\":"),
+		color.New(color.FgGreen, color.Bold).Sprintf("porter update --app example-app"),
+		color.New(color.FgGreen, color.Bold).Sprintf("porter update --app example-app --path ~/path-to-dir --tag testing"),
+		color.New(color.FgGreen, color.Bold).Sprintf("porter update --app remote-git-app --source github"),
+		color.New(color.FgGreen, color.Bold).Sprintf("porter update --app example-app --values my-values.yaml"),
+		color.New(color.FgGreen, color.Bold).Sprintf("porter update --app example-app --method docker --dockerfile ./docker/prod.Dockerfile"),
+	),
+	Run: func(cmd *cobra.Command, args []string) {
+		err := checkLoginAndRun(args, updateFull)
+
+		if err != nil {
+			os.Exit(1)
+		}
+	},
+}
+
+var updateGetEnvCmd = &cobra.Command{
+	Use:   "get-env",
+	Short: "Gets environment variables for a deployment for a specified application given by the --app flag.",
+	Long: fmt.Sprintf(`
+%s
+
+Gets environment variables for a deployment for a specified application given by the --app
+flag. By default, env variables are printed via stdout for use in downstream commands:
+
+  %s
+
+Output can also be written to a file via the --file flag, which should specify the
+destination path for a .env file. For example:
+
+  %s
+`,
+		color.New(color.FgBlue, color.Bold).Sprintf("Help for \"porter update get-env\":"),
+		color.New(color.FgGreen, color.Bold).Sprintf("porter update get-env --app example-app | xargs"),
+		color.New(color.FgGreen, color.Bold).Sprintf("porter update get-env --app example-app --file .env"),
+	),
+	Run: func(cmd *cobra.Command, args []string) {
+		err := checkLoginAndRun(args, updateGetEnv)
+
+		if err != nil {
+			os.Exit(1)
+		}
+	},
+}
+
+var updateBuildCmd = &cobra.Command{
+	Use:   "build",
+	Short: "Builds a new version of the application specified by the --app flag.",
+	Long: fmt.Sprintf(`
+%s
+
+Builds a new version of the application specified by the --app flag. Depending on the
+configured settings, this command may work automatically or will require a specified
+--method flag.
+
+If you have configured the Dockerfile path and/or a build context for this application,
+this command will by default use those settings, so you just need to specify the --app
+flag:
+
+  %s
+
+If you have not linked the build-time requirements for this application, the command will
+use a local build. By default, the cloud-native buildpacks builder will automatically be run
+from the current directory. If you would like to change the build method, you can do so by
+using the --method flag, for example:
+
+  %s
+
+When using "--method docker", you can specify the path to the Dockerfile using the
+--dockerfile flag. This will also override the Dockerfile path that you may have linked
+for the application:
+
+  %s
+`,
+		color.New(color.FgBlue, color.Bold).Sprintf("Help for \"porter update build\":"),
+		color.New(color.FgGreen, color.Bold).Sprintf("porter update build --app example-app"),
+		color.New(color.FgGreen, color.Bold).Sprintf("porter update build --app example-app --method docker"),
+		color.New(color.FgGreen, color.Bold).Sprintf("porter update build --app example-app --method docker --dockerfile ./prod.Dockerfile"),
+	),
+	Run: func(cmd *cobra.Command, args []string) {
+		err := checkLoginAndRun(args, updateBuild)
+
+		if err != nil {
+			os.Exit(1)
+		}
+	},
+}
+
+var updatePushCmd = &cobra.Command{
+	Use:   "push",
+	Short: "Pushes a new image for an application specified by the --app flag.",
+	Long: fmt.Sprintf(`
+%s
+
+Pushes a new image for an application specified by the --app flag. This command uses
+the image repository saved in the application config by default. For example, if an
+application "nginx" was created from the image repo "gcr.io/snowflake-123456/nginx",
+the following command would push the image "gcr.io/snowflake-123456/nginx:new-tag":
+
+  %s
+
+This command will not use your pre-saved authentication set up via "docker login," so if you
+are using an image registry that was created outside of Porter, make sure that you have
+linked it via "porter connect".
+`,
+		color.New(color.FgBlue, color.Bold).Sprintf("Help for \"porter update push\":"),
+		color.New(color.FgGreen, color.Bold).Sprintf("porter update push --app nginx --tag new-tag"),
+	),
+	Run: func(cmd *cobra.Command, args []string) {
+		err := checkLoginAndRun(args, updatePush)
+
+		if err != nil {
+			os.Exit(1)
+		}
+	},
+}
+
+var updateConfigCmd = &cobra.Command{
+	Use:   "config",
+	Short: "Updates the configuration for an application specified by the --app flag.",
+	Long: fmt.Sprintf(`
+%s
+
+Updates the configuration for an application specified by the --app flag, using the configuration
+given by the --values flag. This will trigger a new deployment for the application with
+new configuration set. Note that this will merge your existing configuration with configuration
+specified in the --values file. For example:
+
+  %s
+
+You can update the configuration with only a new tag with the --tag flag, which will only update
+the image that the application uses if no --values file is specified:
+
+  %s
+`,
+		color.New(color.FgBlue, color.Bold).Sprintf("Help for \"porter update config\":"),
+		color.New(color.FgGreen, color.Bold).Sprintf("porter update config --app example-app --values my-values.yaml"),
+		color.New(color.FgGreen, color.Bold).Sprintf("porter update config --app example-app --tag custom-tag"),
+	),
+	Run: func(cmd *cobra.Command, args []string) {
+		err := checkLoginAndRun(args, updateUpgrade)
+
+		if err != nil {
+			os.Exit(1)
+		}
+	},
+}
+
+var app string
+var getEnvFileDest string
+var localPath string
+var tag string
+var dockerfile string
+var method string
+var stream bool
+var buildFlagsEnv []string
+var forcePush bool
+var useCache bool
+
+func init() {
+	buildFlagsEnv = []string{}
+
+	rootCmd.AddCommand(updateCmd)
+
+	updateCmd.PersistentFlags().StringVar(
+		&app,
+		"app",
+		"",
+		"Application in the Porter dashboard",
+	)
+
+	updateCmd.MarkPersistentFlagRequired("app")
+
+	updateCmd.PersistentFlags().BoolVar(
+		&useCache,
+		"use-cache",
+		false,
+		"Whether to use cache (currently in beta)",
+	)
+
+	updateCmd.PersistentFlags().StringVar(
+		&namespace,
+		"namespace",
+		"default",
+		"Namespace of the application",
+	)
+
+	updateCmd.PersistentFlags().StringVar(
+		&source,
+		"source",
+		"local",
+		"the type of source (\"local\" or \"github\")",
+	)
+
+	updateCmd.PersistentFlags().StringVarP(
+		&localPath,
+		"path",
+		"p",
+		"",
+		"If local build, the path to the build directory. If remote build, the relative path from the repository root to the build directory.",
+	)
+
+	updateCmd.PersistentFlags().StringVarP(
+		&tag,
+		"tag",
+		"t",
+		"",
+		"the specified tag to use, if not \"latest\"",
+	)
+
+	updateCmd.PersistentFlags().StringVarP(
+		&values,
+		"values",
+		"v",
+		"",
+		"Filepath to a values.yaml file",
+	)
+
+	updateCmd.PersistentFlags().StringVar(
+		&dockerfile,
+		"dockerfile",
+		"",
+		"the path to the dockerfile",
+	)
+
+	updateCmd.PersistentFlags().StringArrayVarP(
+		&buildFlagsEnv,
+		"env",
+		"e",
+		[]string{},
+		"Build-time environment variable, in the form 'VAR=VALUE'. These are not available at image runtime.",
+	)
+
+	updateCmd.PersistentFlags().StringVar(
+		&method,
+		"method",
+		"",
+		"the build method to use (\"docker\" or \"pack\")",
+	)
+
+	updateCmd.PersistentFlags().BoolVar(
+		&stream,
+		"stream",
+		false,
+		"stream update logs to porter dashboard",
+	)
+
+	updateCmd.PersistentFlags().BoolVar(
+		&forceBuild,
+		"force-build",
+		false,
+		"set this to force build an image (images tagged with \"latest\" have this set by default)",
+	)
+
+	updateCmd.PersistentFlags().BoolVar(
+		&forcePush,
+		"force-push",
+		false,
+		"set this to force push an image (images tagged with \"latest\" have this set by default)",
+	)
+
+	updateCmd.AddCommand(updateGetEnvCmd)
+
+	updateGetEnvCmd.PersistentFlags().StringVar(
+		&getEnvFileDest,
+		"file",
+		"",
+		"file destination for .env files",
+	)
+
+	updateCmd.AddCommand(updateBuildCmd)
+	updateCmd.AddCommand(updatePushCmd)
+	updateCmd.AddCommand(updateConfigCmd)
+}
+
+func updateFull(_ *types.GetAuthenticatedUserResponse, client *api.Client, args []string) error {
+	fullPath, err := filepath.Abs(localPath)
+
+	if err != nil {
+		return err
+	}
+
+	if os.Getenv("GITHUB_ACTIONS") == "" && source == "local" && fullPath == homedir.HomeDir() {
+		proceed, err := utils.PromptConfirm("You are deploying your home directory. Do you want to continue?", false)
+
+		if err != nil {
+			return err
+		}
+
+		if !proceed {
+			return nil
+		}
+	}
+
+	color.New(color.FgGreen).Println("Deploying app:", app)
+
+	updateAgent, err := updateGetAgent(client)
+
+	if err != nil {
+		return err
+	}
+
+	err = updateBuildWithAgent(updateAgent)
+
+	if err != nil {
+		return err
+	}
+
+	err = updatePushWithAgent(updateAgent)
+
+	if err != nil {
+		return err
+	}
+
+	err = updateUpgradeWithAgent(updateAgent)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func updateGetEnv(_ *types.GetAuthenticatedUserResponse, client *api.Client, args []string) error {
+	updateAgent, err := updateGetAgent(client)
+
+	if err != nil {
+		return err
+	}
+
+	buildEnv, err := updateAgent.GetBuildEnv(&deploy.GetBuildEnvOpts{
+		UseNewConfig: false,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	// set the environment variables in the process
+	err = updateAgent.SetBuildEnv(buildEnv)
+
+	if err != nil {
+		return err
+	}
+
+	// write the environment variables to either a file or stdout (stdout by default)
+	return updateAgent.WriteBuildEnv(getEnvFileDest)
+}
+
+func updateBuild(_ *types.GetAuthenticatedUserResponse, client *api.Client, args []string) error {
+	updateAgent, err := updateGetAgent(client)
+
+	if err != nil {
+		return err
+	}
+
+	return updateBuildWithAgent(updateAgent)
+}
+
+func updatePush(_ *types.GetAuthenticatedUserResponse, client *api.Client, args []string) error {
+	updateAgent, err := updateGetAgent(client)
+
+	if err != nil {
+		return err
+	}
+
+	return updatePushWithAgent(updateAgent)
+}
+
+func updateUpgrade(_ *types.GetAuthenticatedUserResponse, client *api.Client, args []string) error {
+	updateAgent, err := updateGetAgent(client)
+
+	if err != nil {
+		return err
+	}
+
+	return updateUpgradeWithAgent(updateAgent)
+}
+
+// HELPER METHODS
+func updateGetAgent(client *api.Client) (*deploy.DeployAgent, error) {
+	var buildMethod deploy.DeployBuildType
+
+	if method != "" {
+		buildMethod = deploy.DeployBuildType(method)
+	}
+
+	// add additional env, if they exist
+	additionalEnv := make(map[string]string)
+
+	for _, buildEnv := range buildFlagsEnv {
+		if strSplArr := strings.SplitN(buildEnv, "=", 2); len(strSplArr) >= 2 {
+			additionalEnv[strSplArr[0]] = strSplArr[1]
+		}
+	}
+
+	// initialize the update agent
+	return deploy.NewDeployAgent(client, app, &deploy.DeployOpts{
+		SharedOpts: &deploy.SharedOpts{
+			ProjectID:       config.Project,
+			ClusterID:       config.Cluster,
+			Namespace:       namespace,
+			LocalPath:       localPath,
+			LocalDockerfile: dockerfile,
+			OverrideTag:     tag,
+			Method:          buildMethod,
+			AdditionalEnv:   additionalEnv,
+			UseCache:        useCache,
+		},
+		Local: source != "github",
+	})
+}
+
+func updateBuildWithAgent(updateAgent *deploy.DeployAgent) error {
+	// build the deployment
+	color.New(color.FgGreen).Println("Building docker image for", app)
+
+	if stream {
+		updateAgent.StreamEvent(types.SubEvent{
+			EventID: "build",
+			Name:    "Build",
+			Index:   100,
+			Status:  types.EventStatusInProgress,
+			Info:    "",
+		})
+	}
+
+	if useCache {
+		err := setDockerConfig(updateAgent.Client)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	// read the values if necessary
+	valuesObj, err := readValuesFile()
+	if err != nil {
+		return err
+	}
+
+	buildEnv, err := updateAgent.GetBuildEnv(&deploy.GetBuildEnvOpts{
+		UseNewConfig: true,
+		NewConfig:    valuesObj,
+	})
+
+	if err != nil {
+		if stream {
+			// another concern: is it safe to ignore the error here?
+			updateAgent.StreamEvent(types.SubEvent{
+				EventID: "build",
+				Name:    "Build",
+				Index:   110,
+				Status:  types.EventStatusFailed,
+				Info:    err.Error(),
+			})
+		}
+		return err
+	}
+
+	// set the environment variables in the process
+	err = updateAgent.SetBuildEnv(buildEnv)
+
+	if err != nil {
+		if stream {
+			updateAgent.StreamEvent(types.SubEvent{
+				EventID: "build",
+				Name:    "Build",
+				Index:   120,
+				Status:  types.EventStatusFailed,
+				Info:    err.Error(),
+			})
+		}
+		return err
+	}
+
+	if err := updateAgent.Build(nil, forceBuild); err != nil {
+		if stream {
+			updateAgent.StreamEvent(types.SubEvent{
+				EventID: "build",
+				Name:    "Build",
+				Index:   130,
+				Status:  types.EventStatusFailed,
+				Info:    err.Error(),
+			})
+		}
+		return err
+	}
+
+	if stream {
+		updateAgent.StreamEvent(types.SubEvent{
+			EventID: "build",
+			Name:    "Build",
+			Index:   140,
+			Status:  types.EventStatusSuccess,
+			Info:    "",
+		})
+	}
+
+	return nil
+}
+
+func updatePushWithAgent(updateAgent *deploy.DeployAgent) error {
+	if useCache {
+		color.New(color.FgGreen).Println("Skipping image push for", app, "as use-cache is set")
+
+		return nil
+	}
+
+	// push the deployment
+	color.New(color.FgGreen).Println("Pushing new image for", app)
+
+	if stream {
+		updateAgent.StreamEvent(types.SubEvent{
+			EventID: "push",
+			Name:    "Push",
+			Index:   200,
+			Status:  types.EventStatusInProgress,
+			Info:    "",
+		})
+	}
+
+	if err := updateAgent.Push(forcePush); err != nil {
+		if stream {
+			updateAgent.StreamEvent(types.SubEvent{
+				EventID: "push",
+				Name:    "Push",
+				Index:   210,
+				Status:  types.EventStatusFailed,
+				Info:    err.Error(),
+			})
+		}
+		return err
+	}
+
+	if stream {
+		updateAgent.StreamEvent(types.SubEvent{
+			EventID: "push",
+			Name:    "Push",
+			Index:   220,
+			Status:  types.EventStatusSuccess,
+			Info:    "",
+		})
+	}
+
+	return nil
+}
+
+func updateUpgradeWithAgent(updateAgent *deploy.DeployAgent) error {
+	// push the deployment
+	color.New(color.FgGreen).Println("Upgrading configuration for", app)
+
+	if stream {
+		updateAgent.StreamEvent(types.SubEvent{
+			EventID: "upgrade",
+			Name:    "Upgrade",
+			Index:   300,
+			Status:  types.EventStatusInProgress,
+			Info:    "",
+		})
+	}
+
+	var err error
+
+	// read the values if necessary
+	valuesObj, err := readValuesFile()
+	if err != nil {
+		return err
+	}
+
+	if err != nil {
+		if stream {
+			updateAgent.StreamEvent(types.SubEvent{
+				EventID: "upgrade",
+				Name:    "Upgrade",
+				Index:   310,
+				Status:  types.EventStatusFailed,
+				Info:    err.Error(),
+			})
+		}
+		return err
+	}
+
+	err = updateAgent.UpdateImageAndValues(valuesObj)
+
+	if err != nil {
+		if stream {
+			updateAgent.StreamEvent(types.SubEvent{
+				EventID: "upgrade",
+				Name:    "Upgrade",
+				Index:   320,
+				Status:  types.EventStatusFailed,
+				Info:    err.Error(),
+			})
+		}
+		return err
+	}
+
+	if stream {
+		updateAgent.StreamEvent(types.SubEvent{
+			EventID: "upgrade",
+			Name:    "Upgrade",
+			Index:   330,
+			Status:  types.EventStatusSuccess,
+			Info:    "",
+		})
+	}
+
+	color.New(color.FgGreen).Println("Successfully updated", app)
+
+	return nil
+}
