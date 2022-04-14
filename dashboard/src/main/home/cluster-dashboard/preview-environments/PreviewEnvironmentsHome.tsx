@@ -129,7 +129,7 @@ const PreviewEnvironmentsHome = () => {
       return <Placeholder>Something went wrong, please try again</Placeholder>;
     }
   
-    if (!hasGHAccountsLinked && false) { // ret 2
+    if (!hasGHAccountsLinked && false) { // ret2
       return (
         <Placeholder>
           <Title>There are no repositories linked</Title>
@@ -142,7 +142,7 @@ const PreviewEnvironmentsHome = () => {
       );
     }
   
-    if (!hasEnvironments && false) { // ret 2
+    if (!hasEnvironments && false) { // ret2
       return (
         <Placeholder>
           <Title>Preview environments are not enabled on this cluster</Title>
@@ -154,10 +154,47 @@ const PreviewEnvironmentsHome = () => {
         </Placeholder>
       );
     }
-
+    // ret2: environments={environments}
     return (
       <EnvironmentsList
-        environments={environments}
+        environments={[
+          {
+            id: 0,
+            project_id: 1,
+            cluster_id: 1,
+            git_installation_id: 123,
+            name: "some-placeholder-name",
+            git_repo_owner: "some-repo-owner",
+            git_repo_name: "my-cool-repo",
+            last_deployment_status: "failed",
+            deployment_count: 12,
+            mode: "manual",
+          },
+          {
+            id: 1,
+            project_id: 1,
+            cluster_id: 2,
+            git_installation_id: 123,
+            name: "might-be-seeing-double",
+            git_repo_owner: "sonlux",
+            git_repo_name: "everything-everywhere-all-at-once",
+            last_deployment_status: "created",
+            deployment_count: 24,
+            mode: "auto",
+          },
+          {
+            id: 2,
+            project_id: 1,
+            cluster_id: 1,
+            git_installation_id: 123,
+            name: "secret-sky",
+            git_repo_owner: "madeon",
+            git_repo_name: "heavy-with-hoping",
+            last_deployment_status: "inactive",
+            deployment_count: 12,
+            mode: "manual",
+          }
+        ]}
         setEnvironments={setEnvironments}
       />
     );
