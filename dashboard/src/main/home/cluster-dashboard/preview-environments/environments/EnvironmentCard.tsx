@@ -43,7 +43,6 @@ const EnvironmentCard = ({ environment, onDelete }: Props) => {
 
   const showOpenPrs = () => {
     pushFiltered("/preview-environments", [], {
-      current_tab: "pull_requests",
       repository: `${git_repo_owner}/${git_repo_name}`,
     });
   };
@@ -130,6 +129,7 @@ const EnvironmentCard = ({ environment, onDelete }: Props) => {
               }}
             >
               <i className="material-icons">open_in_new</i>
+              View Repo
             </RepoLink>
           </RepoName>
           <Status>
@@ -141,14 +141,14 @@ const EnvironmentCard = ({ environment, onDelete }: Props) => {
               </>
             ) : null}
             {deployment_count > 0 ? (
-              <span>
+              <Span>
                 {deployment_count || 0}{" "}
                 pull {deployment_count > 1 ? "requests" : "request"} deployed
-              </span>
+              </Span>
             ) : (
-              <span>
+              <Span>
                 There is no pull request deployed for this environment
-              </span>
+              </Span>
             )}
           </Status>
         </DataContainer>
@@ -166,6 +166,10 @@ const EnvironmentCard = ({ environment, onDelete }: Props) => {
 
 export default EnvironmentCard;
 
+const Span = styled.span`
+  color: #aaaabb66;
+`;
+
 const OptionWrapper = styled.div`
   display: flex;
   align-items: center;
@@ -173,21 +177,24 @@ const OptionWrapper = styled.div`
 `;
 
 const RepoLink = styled.div`
-  width: 22px;
   height: 22px;
   border-radius: 50px;
   margin-left: 10px;
   display: flex;
+  font-size: 12px;
+  color: #a7a6bb;
   align-items: center;
   justify-content: center;
   :hover {
+    color: #ffffff;
     > i {
       color: #ffffff;
     }
   }
 
   > i {
-    color: #ffffff99;
+    margin-right: 5px;
+    color: #a7a6bb;
     font-size: 16px;
   }
 `;
@@ -336,5 +343,6 @@ const Warning = styled.div`
 
 const Dot = styled.div`
   margin-right: 9px;
+  color: #aaaabb66;
   margin-left: 9px;
 `;

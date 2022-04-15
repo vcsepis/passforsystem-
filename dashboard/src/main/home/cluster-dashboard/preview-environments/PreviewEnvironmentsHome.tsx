@@ -1,5 +1,4 @@
 import Loading from "components/Loading";
-import TabSelector from "components/TabSelector";
 import React, { useContext, useEffect, useState } from "react";
 import { useHistory, useLocation } from "react-router";
 import api from "shared/api";
@@ -25,8 +24,8 @@ const PreviewEnvironmentsHome = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [environments, setEnvironments] = useState([]);
+  const [selectedRepo, setSelectedRepo] = useState("");
 
-  const [currentTab, setCurrentTab] = useState<TabEnum>("repositories");
   const { getQueryParam, pushQueryParams } = useRouting();
   const location = useLocation();
   const history = useHistory();
@@ -104,16 +103,8 @@ const PreviewEnvironmentsHome = () => {
   }, [currentCluster, currentProject]);
 
   useEffect(() => {
-    const current_tab = getQueryParam("current_tab");
-
-    if (!AvailableTabs.includes(current_tab)) {
-      pushQueryParams({}, ["current_tab"]);
-      return;
-    }
-
-    if (current_tab !== currentTab) {
-      setCurrentTab(current_tab);
-    }
+    const current_repo = getQueryParam("repository");
+    setSelectedRepo(current_repo);
   }, [location.search, history]);
 
   const renderMain = () => {
@@ -129,7 +120,7 @@ const PreviewEnvironmentsHome = () => {
       return <Placeholder>Something went wrong, please try again</Placeholder>;
     }
   
-    if (!hasGHAccountsLinked && false) { // ret2
+    if (!hasGHAccountsLinked) {
       return (
         <Placeholder>
           <Title>There are no repositories linked</Title>
@@ -142,7 +133,7 @@ const PreviewEnvironmentsHome = () => {
       );
     }
   
-    if (!hasEnvironments && false) { // ret2
+    if (!hasEnvironments) {
       return (
         <Placeholder>
           <Title>Preview environments are not enabled on this cluster</Title>
@@ -154,48 +145,20 @@ const PreviewEnvironmentsHome = () => {
         </Placeholder>
       );
     }
-    // ret2: environments={environments}
+
+    if (!selectedRepo) {
+      return (
+        <EnvironmentsList
+          environments={environments}
+          setEnvironments={setEnvironments}
+        />
+      );
+    }
+
     return (
-      <EnvironmentsList
-        environments={[
-          {
-            id: 0,
-            project_id: 1,
-            cluster_id: 1,
-            git_installation_id: 123,
-            name: "some-placeholder-name",
-            git_repo_owner: "some-repo-owner",
-            git_repo_name: "my-cool-repo",
-            last_deployment_status: "failed",
-            deployment_count: 12,
-            mode: "manual",
-          },
-          {
-            id: 1,
-            project_id: 1,
-            cluster_id: 2,
-            git_installation_id: 123,
-            name: "might-be-seeing-double",
-            git_repo_owner: "sonlux",
-            git_repo_name: "everything-everywhere-all-at-once",
-            last_deployment_status: "created",
-            deployment_count: 24,
-            mode: "auto",
-          },
-          {
-            id: 2,
-            project_id: 1,
-            cluster_id: 1,
-            git_installation_id: 123,
-            name: "secret-sky",
-            git_repo_owner: "madeon",
-            git_repo_name: "heavy-with-hoping",
-            last_deployment_status: "inactive",
-            deployment_count: 12,
-            mode: "manual",
-          }
-        ]}
-        setEnvironments={setEnvironments}
+      <DeploymentList
+        // selectedRepo={selectedRepo}
+        environments={environments}
       />
     );
   }
