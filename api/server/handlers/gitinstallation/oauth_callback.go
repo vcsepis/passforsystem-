@@ -92,14 +92,18 @@ func (c *GithubAppOAuthCallbackHandler) ServeHTTP(w http.ResponseWriter, r *http
 
 	if redirectStr, ok := session.Values["redirect_uri"].(string); ok && redirectStr != "" {
 		// attempt to parse the redirect uri, if it fails just redirect to dashboard
+		fmt.Println(fmt.Sprintf("[DEBUG] Github app Callback. RedirectStr from session store = %v", redirectStr))
 		redirectURI, err := url.Parse(redirectStr)
 
 		if err != nil {
+			fmt.Println(fmt.Sprintf("[DEBUG] Parse Redrect string error. Error = %v", err))
 			http.Redirect(w, r, "/dashboard", 302)
 		}
 
+		fmt.Println(fmt.Sprintf("[DEBUG] Redirection to = %v", redirectURI.Path))
 		http.Redirect(w, r, fmt.Sprintf("%s?%s", redirectURI.Path, redirectURI.RawQuery), 302)
 	} else {
+		fmt.Println(fmt.Sprintf("[DEBUG] Notfound redirect URI in session store. Session Values = %v", session.Values))
 		http.Redirect(w, r, "/dashboard", 302)
 	}
 }

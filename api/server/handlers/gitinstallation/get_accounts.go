@@ -2,6 +2,7 @@ package gitinstallation
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"sort"
 	"time"
@@ -70,6 +71,7 @@ func (c *GetGithubAppAccountsHandler) getOrgList(ctx context.Context,
 }
 
 func (c *GetGithubAppAccountsHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	fmt.Println(fmt.Sprintf("[DEBUG] getting github app oauth token"))
 	tok, err := GetGithubAppOauthTokenFromRequest(c.Config(), r)
 
 	if err != nil {

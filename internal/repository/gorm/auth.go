@@ -1,6 +1,7 @@
 package gorm
 
 import (
+	"fmt"
 	"github.com/porter-dev/porter/internal/encryption"
 	"github.com/porter-dev/porter/internal/models"
 	"github.com/porter-dev/porter/internal/repository"
@@ -1296,6 +1297,8 @@ func (repo *GithubAppOAuthIntegrationRepository) CreateGithubAppOAuthIntegration
 // ReadGithubAppOauthIntegration finds a GithubAppOauthIntegration by id
 func (repo *GithubAppOAuthIntegrationRepository) ReadGithubAppOauthIntegration(id uint) (*ints.GithubAppOAuthIntegration, error) {
 	ret := &ints.GithubAppOAuthIntegration{}
+
+	fmt.Println(fmt.Sprintf("[DEBUG] [ReadGithubAppOauthIntegration] id: %v", id))
 
 	if err := repo.db.Where("id = ?", id).First(&ret).Error; err != nil {
 		return nil, err
