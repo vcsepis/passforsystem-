@@ -78,7 +78,7 @@ const ConnectSource: React.FC<{
     <div>
       <TitleSection>Getting Started</TitleSection>
       <Subtitle>
-        Step 1 of 3 - Connect to GitHub
+        Connect to GitHub
         <DocsHelper
           tooltipText="Porter uses a GitHub App to authorize and gain access to your GitHub repositories. In order to be able to deploy applications through GitHub repositories, you must first authorize the Porter GitHub App to have access to them."
           link={

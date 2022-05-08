@@ -43,7 +43,8 @@ const flow: FlowType = {
     connect_source: {
       url: "/onboarding/source",
       on: {
-        continue: "connect_registry",
+        // continue: "connect_registry",
+        continue: "clean_up",
       },
       execute: {
         on: {
