@@ -28,25 +28,34 @@ func GetGithubAppOauthTokenFromRequest(config *config.Config, r *http.Request) (
 	oauthInt, err := getOAuthInt(user.GithubAppIntegrationID)
 
 	if err != nil {
+		//fmt.Println(fmt.Sprintf("[DEBUG] Some error when get first get oauth token failed. Error: %v", err))
 		return nil, err
 	}
 
+	//fmt.Println(fmt.Sprintf("[DEBUG] sharedOauthModel: %v", oauthInt.SharedOAuthModel))
+	//fmt.Println(fmt.Sprintf("[DEBUG] GithubAppConfig: %v", config.GithubAppConf.Config))
 	_, _, err = oauth.GetAccessToken(oauthInt.SharedOAuthModel,
 		&config.GithubAppConf.Config,
 		oauth.MakeUpdateGithubAppOauthIntegrationFunction(oauthInt, config.Repo),
 	)
 
 	if err != nil {
+		//fmt.Println(fmt.Sprintf("[DEBUG] First get access token failed. Error: %v", err))
+
 		// try again, in case the token got updated
 		oauthInt2, err := getOAuthInt(user.GithubAppIntegrationID)
 
 		if err != nil || oauthInt2.Expiry == oauthInt.Expiry {
+			//fmt.Println(fmt.Sprintf("[DEBUG] Some error when second get oauth token failed. Error: %v", err))
 			return nil, err
 		}
 		oauthInt.AccessToken = oauthInt2.AccessToken
 		oauthInt.RefreshToken = oauthInt2.RefreshToken
 		oauthInt.Expiry = oauthInt2.Expiry
 	}
+
+	//fmt.Println(fmt.Sprintf("[DEBUG] Access Token: %v", string(oauthInt.AccessToken)))
+	//fmt.Println(fmt.Sprintf("[DEBUG] Refresh Token: %v", string(oauthInt.RefreshToken)))
 
 	return &oauth2.Token{
 		AccessToken:  string(oauthInt.AccessToken),

@@ -29,9 +29,11 @@ func NewGithubListReposHandler(
 }
 
 func (c *GithubListReposHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	//fmt.Println(fmt.Sprintf("[DEBUG] Getting Github app client"))
 	client, err := GetGithubAppClientFromRequest(c.Config(), r)
 
 	if err != nil {
+		//fmt.Println(fmt.Sprintf("[ERROR] get github app client error. Error = %v", err))
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
 		return
 	}
@@ -44,6 +46,7 @@ func (c *GithubListReposHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	repoList, resp, err := client.Apps.ListRepos(context.Background(), opt)
 
 	if err != nil {
+		//fmt.Println(fmt.Sprintf("[ERROR] List github repos error. Error = %v", err))
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
 		return
 	}

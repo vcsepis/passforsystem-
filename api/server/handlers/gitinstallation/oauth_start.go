@@ -1,7 +1,6 @@
 package gitinstallation
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/porter-dev/porter/api/server/handlers"
@@ -27,7 +26,7 @@ func NewGithubAppOAuthStartHandler(
 func (c *GithubAppOAuthStartHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	user, _ := r.Context().Value(types.UserScope).(*models.User)
 
-	fmt.Println(fmt.Sprintf("[DEBUG] githubAppOauthStartHandler. user = %v", user))
+	//fmt.Println(fmt.Sprintf("[DEBUG] githubAppOauthStartHandler. user = %v", user))
 
 	c.Config().AnalyticsClient.Track(analytics.GithubConnectionStartTrack(
 		&analytics.GithubConnectionStartTrackOpts{
