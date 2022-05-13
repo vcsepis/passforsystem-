@@ -194,14 +194,14 @@ class ClusterSection extends Component<PropsType, StateType> {
       );
     }
 
-    return (
-      <InitializeButton
-        onClick={() =>
-          this.context.setCurrentModal("ClusterInstructionsModal", {})
-        }
-      >
-        <Plus>+</Plus> Connect a Cluster
-      </InitializeButton>
+    return (null
+      // <InitializeButton
+      //   onClick={() =>
+      //     this.context.setCurrentModal("ClusterInstructionsModal", {})
+      //   }
+      // >
+      //   <Plus>+</Plus> Connect a Cluster
+      // </InitializeButton>
     );
   };
 

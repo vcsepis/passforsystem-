@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/porter-dev/porter/api/server/handlers"
@@ -39,5 +40,21 @@ func (c *RegistryListRepositoriesHandler) ServeHTTP(w http.ResponseWriter, r *ht
 		return
 	}
 
-	c.WriteResult(w, r, repos)
+	//fmt.Println(fmt.Sprintf("[DEBUG] repos: %v", repos))
+
+	// get Project
+	proj, err := c.Repo().Project().ReadProject(reg.ProjectID)
+	if err != nil {
+		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+		return
+	}
+	repoName := fmt.Sprintf("%s-repository", proj.Name)
+	var retRepos = []*types.RegistryRepository{}
+	for _, repo := range repos {
+		if repo.Name == repoName {
+			retRepos = append(retRepos, repo)
+		}
+	}
+
+	c.WriteResult(w, r, retRepos)
 }

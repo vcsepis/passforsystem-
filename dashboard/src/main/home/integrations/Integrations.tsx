@@ -12,7 +12,7 @@ import TitleSection from "components/TitleSection";
 
 type PropsType = RouteComponentProps;
 
-const IntegrationCategoryStrings = ["registry", "slack"]; /*"kubernetes",*/
+const IntegrationCategoryStrings = ["slack"]; /*"registry", "kubernetes",*/
 
 const Integrations: React.FC<PropsType> = (props) => {
   return (
@@ -69,7 +69,7 @@ const Integrations: React.FC<PropsType> = (props) => {
 
             <IntegrationList
               currentCategory={""}
-              integrations={["registry", "slack"]}
+              integrations={["slack"]}
               setCurrent={(x) =>
                 pushFiltered(props, `/integrations/${x}`, ["project_id"])
               }

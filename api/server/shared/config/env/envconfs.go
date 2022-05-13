@@ -98,6 +98,11 @@ type ServerConf struct {
 
 	// Disable filtering for project creation
 	DisableAllowlist bool `env:"DISABLE_ALLOWLIST,default=false"`
+
+	// Default aws Integration Accesskey & secret
+	DefaultAWSIntAccessKey    string `env:"DEFAULT_AWS_INTEGRATION_ACCESS_KEY"`
+	DefaultAWSIntAccessSecret string `env:"DEFAULT_AWS_INTEGRATION_ACCESS_SECRET"`
+	DefaultAWSIntRegion       string `env:"DEFAULT_AWS_INTEGRATION_REGION"`
 }
 
 // DBConf is the database configuration: if generated from environment variables,

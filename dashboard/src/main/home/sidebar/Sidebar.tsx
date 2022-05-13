@@ -218,10 +218,10 @@ class Sidebar extends Component<PropsType, StateType> {
       return (
         <>
           <SidebarLabel>Home</SidebarLabel>
-          <NavButton to="/dashboard">
-            <Img src={category} />
-            Dashboard
-          </NavButton>
+          {/*<NavButton to="/dashboard">*/}
+          {/*  <Img src={category} />*/}
+          {/*  Dashboard*/}
+          {/*</NavButton>*/}
           <NavButton to="/launch">
             <Img src={rocket} />
             Launch
