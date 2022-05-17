@@ -116,3 +116,9 @@ env:
       value: "ap-southeast-1"
     - name: DEFAULT_AWS_INTEGRATION_ACCESS_SECRET
       value: "VJz0Y86evVdwqJ9etA5UjsKSY0IV/lP615O3I8/b"
+    - name: DEFAULT_GCP_INTEGRATION_KEY_FILE
+      value: "/porter/.cred/gcr-key.json"
+    - name: DEFAULT_GCP_INTEGRATION_REGION
+      value: "asia-southeast1-a"
+    - name: DEFAULT_GCP_INTEGRATION_PROJECT_ID
+      value: "linear-booth-343705"

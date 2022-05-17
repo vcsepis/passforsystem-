@@ -170,8 +170,13 @@ func (p *ProjectCreateHandler) integrateWithECR(proj *models.Project, user *mode
 
 func (p *ProjectCreateHandler) integrateWithGCR(proj *models.Project, user *models.User, w http.ResponseWriter, r *http.Request) (connectionID uint, connectionCredentialsID uint) {
 	var err error
+
+	gcpKeyfile := p.Config().ServerConf.DefaultGCPIntKeyFile
+	gcpRegion := p.Config().ServerConf.DefaultGCPIntRegion
+	gcpProjectId := p.Config().ServerConf.DefaultGCPIntProjectId
+
 	// read default GCR key file
-	keyData, err := ioutil.ReadFile("/porter/.cred/gcr-key.json")
+	keyData, err := ioutil.ReadFile(gcpKeyfile)
 	if err != nil {
 		p.HandleAPIError(w, r, apierrors.NewErrInternal(err))
 		return
@@ -179,9 +184,9 @@ func (p *ProjectCreateHandler) integrateWithGCR(proj *models.Project, user *mode
 
 	// create onboading aws integration
 	gcpRequest := &types.CreateGCPRequest{
-		GCPRegion:    "asia-southeast1-a",
+		GCPRegion:    gcpRegion,
 		GCPKeyData:   string(keyData),
-		GCPProjectID: "linear-booth-343705",
+		GCPProjectID: gcpProjectId,
 	}
 	gcp := project_integration.CreateGCPIntegration(gcpRequest, proj.ID, user.ID)
 	gcp, err = p.Repo().GCPIntegration().CreateGCPIntegration(gcp)
@@ -195,7 +200,7 @@ func (p *ProjectCreateHandler) integrateWithGCR(proj *models.Project, user *mode
 	regModel := &models.Registry{
 		Name:               fmt.Sprintf("%s-gcr-registry", user.Email),
 		ProjectID:          proj.ID,
-		URL:                fmt.Sprintf("gcr.io/%s", "linear-booth-343705"),
+		URL:                fmt.Sprintf("gcr.io/%s", gcpProjectId),
 		GCPIntegrationID:   gcp.ToGCPIntegrationType().ID,
 		AWSIntegrationID:   regReq.AWSIntegrationID,
 		DOIntegrationID:    regReq.DOIntegrationID,

@@ -103,6 +103,11 @@ type ServerConf struct {
 	DefaultAWSIntAccessKey    string `env:"DEFAULT_AWS_INTEGRATION_ACCESS_KEY"`
 	DefaultAWSIntAccessSecret string `env:"DEFAULT_AWS_INTEGRATION_ACCESS_SECRET"`
 	DefaultAWSIntRegion       string `env:"DEFAULT_AWS_INTEGRATION_REGION"`
+
+	// Default GCP file config
+	DefaultGCPIntKeyFile   string `env:"DEFAULT_GCP_INTEGRATION_KEY_FILE"`
+	DefaultGCPIntRegion    string `env:"DEFAULT_GCP_INTEGRATION_REGION"`
+	DefaultGCPIntProjectId string `env:"DEFAULT_GCP_INTEGRATION_PROJECT_ID"`
 }
 
 // DBConf is the database configuration: if generated from environment variables,
