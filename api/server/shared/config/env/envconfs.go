@@ -108,6 +108,9 @@ type ServerConf struct {
 	DefaultGCPIntKeyFile   string `env:"DEFAULT_GCP_INTEGRATION_KEY_FILE"`
 	DefaultGCPIntRegion    string `env:"DEFAULT_GCP_INTEGRATION_REGION"`
 	DefaultGCPIntProjectId string `env:"DEFAULT_GCP_INTEGRATION_PROJECT_ID"`
+
+	// Default Cluster
+	DefaultKubeConfigFile string `env:"DEFAULT_KUBE_CONFIG_FILE"`
 }
 
 // DBConf is the database configuration: if generated from environment variables,

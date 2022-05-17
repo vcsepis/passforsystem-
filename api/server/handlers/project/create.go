@@ -3,6 +3,8 @@ package project
 import (
 	"fmt"
 	"github.com/porter-dev/porter/api/server/handlers/project_integration"
+	"github.com/porter-dev/porter/internal/kubernetes"
+	"github.com/porter-dev/porter/internal/kubernetes/resolver"
 	"github.com/porter-dev/porter/internal/registry"
 	"io/ioutil"
 	"net/http"
@@ -71,6 +73,9 @@ func (p *ProjectCreateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		p.HandleAPIError(w, r, apierrors.NewErrInternal(err))
 		return
 	}
+
+	// integrate with kubernetes cluster
+	p.configDefaultCluster(proj, user, w, r)
 
 	// create default project usage restriction
 	_, err = p.Repo().ProjectUsage().CreateProjectUsage(&models.ProjectUsage{
@@ -224,6 +229,111 @@ func (p *ProjectCreateHandler) integrateWithGCR(proj *models.Project, user *mode
 	}
 
 	return gcp.ToGCPIntegrationType().ID, regModel.ToRegistryType().ID
+}
+
+func (p *ProjectCreateHandler) configDefaultCluster(proj *models.Project, user *models.User, w http.ResponseWriter, r *http.Request) {
+	kubeconfigFile := p.Config().ServerConf.DefaultKubeConfigFile
+	isServerLocal := p.Config().ServerConf.IsLocal
+
+	kubeconfig, err := ioutil.ReadFile(kubeconfigFile)
+	if err != nil {
+		p.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+		return
+	}
+	candidates, err := kubernetes.GetClusterCandidatesFromKubeconfig(
+		kubeconfig,
+		proj.ID,
+		// can only use "local" auth mechanism if the server is running locally
+		isServerLocal,
+	)
+
+	if err != nil {
+		return
+	}
+
+	for _, cc := range candidates {
+		cc.ProjectID = proj.ID
+	}
+
+	for _, cc := range candidates {
+		// handle write to the database
+		cc, err = p.Repo().Cluster().CreateClusterCandidate(cc)
+
+		if err != nil {
+			p.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+			return
+		}
+
+		p.Config().AnalyticsClient.Track(analytics.ClusterConnectionStartTrack(
+			&analytics.ClusterConnectionStartTrackOpts{
+				ProjectScopedTrackOpts: analytics.GetProjectScopedTrackOpts(user.ID, proj.ID),
+				ClusterCandidateID:     cc.ID,
+			},
+		))
+
+		// if the ClusterCandidate does not have any actions to perform, create the Cluster
+		// automatically
+		if len(cc.Resolvers) == 0 {
+			var cluster *models.Cluster
+			cluster, cc, err = createClusterFromCandidate(p.Repo(), proj, user, cc, &types.ClusterResolverAll{})
+
+			if err != nil {
+				p.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+				return
+			}
+
+			p.Config().AnalyticsClient.Track(analytics.ClusterConnectionSuccessTrack(
+				&analytics.ClusterConnectionSuccessTrackOpts{
+					ClusterScopedTrackOpts: analytics.GetClusterScopedTrackOpts(user.ID, proj.ID, cluster.ID),
+					ClusterCandidateID:     cc.ID,
+				},
+			))
+		}
+	}
+
+	return
+}
+
+func createClusterFromCandidate(
+	repo repository.Repository,
+	project *models.Project,
+	user *models.User,
+	candidate *models.ClusterCandidate,
+	clResolver *types.ClusterResolverAll,
+) (*models.Cluster, *models.ClusterCandidate, error) {
+	// we query the repo again to get the decrypted version of the cluster candidate
+	cc, err := repo.Cluster().ReadClusterCandidate(project.ID, candidate.ID)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cResolver := &resolver.CandidateResolver{
+		Resolver:           clResolver,
+		ClusterCandidateID: cc.ID,
+		ProjectID:          project.ID,
+		UserID:             user.ID,
+	}
+
+	err = cResolver.ResolveIntegration(repo)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cluster, err := cResolver.ResolveCluster(repo)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cc, err = repo.Cluster().UpdateClusterCandidateCreatedClusterID(cc.ID, cluster.ID)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return cluster, cc, nil
 }
 
 func CreateProjectWithUser(

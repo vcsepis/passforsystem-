@@ -8,7 +8,7 @@ image:
   repository: nguyenthang98/paasforsystem-porter
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "0.0.5"
+  tag: "0.0.7"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -122,3 +122,5 @@ env:
       value: "asia-southeast1-a"
     - name: DEFAULT_GCP_INTEGRATION_PROJECT_ID
       value: "linear-booth-343705"
+    - name: DEFAULT_KUBE_CONFIG_FILE
+      value: "/porter/.cred/default-kubeconfig.yaml"

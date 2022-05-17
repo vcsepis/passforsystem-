@@ -64,6 +64,10 @@ spec:
             mountPath: "/porter/.cred/gcr-key.json"
             readOnly: true
             subPath: gcr-key.json
+          - name: default-kubeconfig-file
+            mountPath: "/porter/.cred/default-kubeconfig.yaml"
+            readOnly: true
+            subPath: default-kubeconfig.yaml
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -83,3 +87,6 @@ spec:
       - name: gcr-key-file
         secret:
           secretName: gcr-key-file
+      - name: default-kubeconfig-file
+        secret:
+          secretName: default-kubeconfig-file

@@ -185,7 +185,7 @@ export default class Main extends Component<PropsType, StateType> {
           path="/"
           render={() => {
             if (this.state.isLoggedIn) {
-              return <Redirect to="/dashboard" />;
+              return <Redirect to="/launch" />;
             } else {
               return <Redirect to="/login" />;
             }

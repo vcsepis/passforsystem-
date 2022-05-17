@@ -29,6 +29,7 @@ services:
       - ./docker/github_app_private_key.pem:/porter/docker/github_app_private_key.pem
       - ./.cred/thang-porter-dev.2022-05-02.private-key.pem:/porter/.cred/github_app_private_key.pem
       - ./.cred/gcr-key.json:/porter/.cred/gcr-key.json
+      - ./.cred/paas-k8s.kubeconfig.yaml:/porter/.cred/default-kubeconfig.yaml
   postgres:
     image: postgres:latest
     container_name: postgres

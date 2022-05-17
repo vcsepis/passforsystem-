@@ -170,6 +170,8 @@ class ClusterSection extends Component<PropsType, StateType> {
     let { clusters, showDrawer } = this.state;
     let { currentCluster } = this.context;
 
+    return null
+
     if (clusters.length > 0) {
       return (
         <ClusterSelector to="/cluster-dashboard">
