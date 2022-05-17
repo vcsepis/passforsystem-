@@ -83,6 +83,7 @@ func IgnoreAPIError(w http.ResponseWriter, r *http.Request, err apierrors.Reques
 
 func (d *DefaultPorterHandler) PopulateOAuthSession(w http.ResponseWriter, r *http.Request, state string, isProject bool) error {
 	session, err := d.Config().Store.Get(r, d.Config().ServerConf.CookieName)
+	fmt.Println(fmt.Sprintf("[DEBUG] session key: %s", d.Config().ServerConf.CookieName))
 
 	if err != nil {
 		return err
@@ -109,6 +110,12 @@ func (d *DefaultPorterHandler) PopulateOAuthSession(w http.ResponseWriter, r *ht
 	if err := session.Save(r, w); err != nil {
 		return err
 	}
+
+	fmt.Println(fmt.Sprintf("[DEBUG] Saved Github oauth state '%s' in session store. Session saved state: '%s'", state, session.Values["state"]))
+
+	//test
+	newSession, err := d.Config().Store.Get(r, d.Config().ServerConf.CookieName)
+	fmt.Println(fmt.Sprintf("[DEBUG] Session get: %v", newSession.Values["state"]))
 
 	return nil
 }

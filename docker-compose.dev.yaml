@@ -17,7 +17,7 @@ services:
     depends_on:
       - postgres
     env_file:
-      - ./docker/.env
+      - ./docker/local.env
     command: /bin/sh -c '/porter/bin/migrate; air -c .air.toml;'
     restart: on-failure
     volumes:
@@ -28,6 +28,7 @@ services:
       - ./docker/kubeconfig.yaml:/porter/kubeconfig.yaml
       - ./docker/github_app_private_key.pem:/porter/docker/github_app_private_key.pem
       - ./.cred/thang-porter-dev.2022-05-02.private-key.pem:/porter/.cred/github_app_private_key.pem
+      - ./.cred/gcr-key.json:/porter/.cred/gcr-key.json
   postgres:
     image: postgres:latest
     container_name: postgres
@@ -36,7 +37,7 @@ services:
       - POSTGRES_PASSWORD=porter
       - POSTGRES_DB=porter
     ports:
-      - 5400:5432
+      - 5432:5432
     volumes:
       - database:/var/lib/postgresql/data
   redis:

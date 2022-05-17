@@ -1,0 +1,6 @@
+dependencies:
+- name: paas-development
+  repository: file://../../
+  version: 0.1.0
+digest: sha256:ccab785f4be30f0f5c4755a8e23feec51377edb43697ac1df466f803ffb05762
+generated: "2022-05-04T21:05:29.7142678+07:00"

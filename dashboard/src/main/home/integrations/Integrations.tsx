@@ -69,7 +69,7 @@ const Integrations: React.FC<PropsType> = (props) => {
 
             <IntegrationList
               currentCategory={""}
-              integrations={["slack"]}
+              integrations={["slack"]} /*"registry", */
               setCurrent={(x) =>
                 pushFiltered(props, `/integrations/${x}`, ["project_id"])
               }

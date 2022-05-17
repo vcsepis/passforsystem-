@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-paas-dev-webpack
+spec:
+  rules:
+  - host: devpaas-thang.myepis.cloud
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: paas-dev-webpack
+            port:
+              number: 8080
+  ingressClassName: nginx
+
