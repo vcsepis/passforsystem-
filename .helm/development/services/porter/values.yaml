@@ -124,3 +124,7 @@ env:
       value: "linear-booth-343705"
     - name: DEFAULT_KUBE_CONFIG_FILE
       value: "/porter/.cred/default-kubeconfig.yaml"
+    - name: APPLICATION_CHART_REPO_URL
+      value: "https://charts.dev.getporter.dev"
+    - name: ADDON_CHART_REPO_URL
+      value: "https://chart-addons.dev.getporter.dev"
