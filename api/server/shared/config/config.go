@@ -9,6 +9,7 @@ import (
 	"github.com/porter-dev/porter/internal/auth/token"
 	"github.com/porter-dev/porter/internal/billing"
 	"github.com/porter-dev/porter/internal/helm/urlcache"
+	"github.com/porter-dev/porter/internal/integrations/cloudflare"
 	"github.com/porter-dev/porter/internal/integrations/powerdns"
 	"github.com/porter-dev/porter/internal/notifier"
 	"github.com/porter-dev/porter/internal/oauth"
@@ -92,6 +93,9 @@ type Config struct {
 
 	// PowerDNSClient is a client for PowerDNS, if the Porter instance supports vanity URLs
 	PowerDNSClient *powerdns.Client
+
+	// CloudflareDNSClient is a client for CloudflareDNS
+	CloudflareDNSClient *cloudflare.Client
 
 	// CredentialBackend is the backend for credential storage, if external cred storage (like Vault)
 	// is used

@@ -67,7 +67,8 @@ func (c *CreateSubdomainHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 
 	_record := domain.DNSRecord(*record)
 
-	err = _record.CreateDomain(c.Config().PowerDNSClient)
+	//err = _record.CreateDomain(c.Config().PowerDNSClient)
+	err = _record.CreateDomainByCloudflare(c.Config().CloudflareDNSClient)
 
 	if err != nil {
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))

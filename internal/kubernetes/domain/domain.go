@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"fmt"
+	"github.com/porter-dev/porter/internal/integrations/cloudflare"
 	"net"
 	"strings"
 
@@ -89,4 +90,15 @@ func (e *DNSRecord) CreateDomain(powerDNSClient *powerdns.Client) error {
 	}
 
 	return powerDNSClient.CreateCNAMERecord(e.Endpoint, domain)
+}
+
+func (e *DNSRecord) CreateDomainByCloudflare(cloudflareDNSClient *cloudflare.Client) error {
+	isIPv4 := net.ParseIP(e.Endpoint) != nil
+	domain := fmt.Sprintf("%s.%s", e.SubdomainPrefix, e.RootDomain)
+
+	if isIPv4 {
+		return cloudflareDNSClient.CreateARecord(e.Endpoint, domain)
+	}
+
+	return cloudflareDNSClient.CreateCNAMERecord(e.Endpoint, domain)
 }

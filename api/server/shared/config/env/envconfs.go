@@ -77,6 +77,11 @@ type ServerConf struct {
 	PowerDNSAPIServerURL string `env:"POWER_DNS_API_SERVER_URL"`
 	PowerDNSAPIKey       string `env:"POWER_DNS_API_KEY"`
 
+	CloudflareAPIServerURL string `env:"CLOUDFLARE_API_SERVER_URL,default=https://api.cloudflare.com"`
+	CloudflareAPIKey       string `env:"CLOUDFLARE_API_KEY"`
+	CloudflareAPIEmail     string `env:"CLOUDFLARE_API_EMAIL"`
+	CloudflareZoneId       string `env:"CLOUDFLARE_ZONE_ID"`
+
 	// Email for an admin user. On a self-hosted instance of Porter, the
 	// admin user is the only user that can log in and register. After the admin
 	// user has logged in, registration is turned off.

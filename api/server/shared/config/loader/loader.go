@@ -2,6 +2,7 @@ package loader
 
 import (
 	"fmt"
+	"github.com/porter-dev/porter/internal/integrations/cloudflare"
 	"net/http"
 	"strconv"
 
@@ -212,6 +213,13 @@ func (e *EnvConfigLoader) LoadConfig() (res *config.Config, err error) {
 
 	if sc.PowerDNSAPIKey != "" && sc.PowerDNSAPIServerURL != "" {
 		res.PowerDNSClient = powerdns.NewClient(sc.PowerDNSAPIServerURL, sc.PowerDNSAPIKey, sc.AppRootDomain)
+	}
+
+	fmt.Println(fmt.Sprintf("[DEBUG] Check if Cloud flare DNS client available"))
+	fmt.Println(fmt.Sprintf("[DEBUG]  %v - %v - %v - %v", sc.CloudflareAPIEmail, sc.CloudflareAPIKey, sc.CloudflareAPIServerURL, sc.CloudflareZoneId))
+	if sc.CloudflareAPIEmail != "" && sc.CloudflareAPIKey != "" && sc.CloudflareAPIServerURL != "" && sc.CloudflareZoneId != "" {
+		res.CloudflareDNSClient = cloudflare.NewClient(sc.CloudflareAPIServerURL, sc.CloudflareAPIEmail, sc.CloudflareAPIKey, sc.AppRootDomain, sc.CloudflareZoneId)
+		fmt.Println(fmt.Sprintf("[DEBUG] Initialized Cloud flare DNS client"))
 	}
 
 	return res, nil
