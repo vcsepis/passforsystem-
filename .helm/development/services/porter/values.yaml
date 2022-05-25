@@ -8,7 +8,7 @@ image:
   repository: nguyenthang98/paasforsystem-porter
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "0.0.7"
+  tag: "0.0.8"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -95,15 +95,15 @@ env:
     - name: WELCOME_FORM_WEBHOOK
       value: "https://devpaas-thang.myepis.cloud"
     - name: GITHUB_CLIENT_ID
-      value: "3614f9c923f8925c69db"
+      value: "<secret>"
     - name: GITHUB_CLIENT_SECRET
-      value: "7e35da28445e3441ac97a8be2c22952add38d4a9"
+      value: "<secret>"
     - name: GITHUB_APP_CLIENT_ID
-      value: "Iv1.62e6cb85121c72d9"
+      value: "<secret>"
     - name: GITHUB_APP_CLIENT_SECRET
-      value: "2309f7dc4b102fd4f331c468eb3757f767b9a41b"
+      value: "<secret>"
     - name: GITHUB_APP_WEBHOOK_SECRET
-      value: "abc123"
+      value: "<secret>"
     - name: GITHUB_APP_NAME
       value: "thang-porter-dev"
     - name: GITHUB_APP_ID
@@ -111,11 +111,11 @@ env:
     - name: GITHUB_APP_SECRET_PATH
       value: "/porter/.cred/github_app_private_key.pem"
     - name: DEFAULT_AWS_INTEGRATION_ACCESS_KEY
-      value: "AKIAYJWX6BRK662TV2ZV"
+      value: "<secret>"
     - name: DEFAULT_AWS_INTEGRATION_REGION
       value: "ap-southeast-1"
     - name: DEFAULT_AWS_INTEGRATION_ACCESS_SECRET
-      value: "VJz0Y86evVdwqJ9etA5UjsKSY0IV/lP615O3I8/b"
+      value: "<secret>"
     - name: DEFAULT_GCP_INTEGRATION_KEY_FILE
       value: "/porter/.cred/gcr-key.json"
     - name: DEFAULT_GCP_INTEGRATION_REGION
@@ -125,6 +125,14 @@ env:
     - name: DEFAULT_KUBE_CONFIG_FILE
       value: "/porter/.cred/default-kubeconfig.yaml"
     - name: APPLICATION_CHART_REPO_URL
-      value: "https://charts.dev.getporter.dev"
+      value: "https://charts.getporter.dev"
     - name: ADDON_CHART_REPO_URL
-      value: "https://chart-addons.dev.getporter.dev"
+      value: "https://chart-addons.getporter.dev"
+    - name: APP_ROOT_DOMAIN
+      value: "paascloud.me"
+    - name: CLOUDFLARE_API_KEY
+      value: "<secret>"
+    - name: CLOUDFLARE_API_EMAIL
+      value: "paas@monmi.vn"
+    - name: CLOUDFLARE_ZONE_ID
+      value: "<secret>"
