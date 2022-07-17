@@ -20,6 +20,7 @@ type ServerConf struct {
 	StaticFilePath       string        `env:"STATIC_FILE_PATH,default=/porter/static"`
 	CookieName           string        `env:"COOKIE_NAME,default=porter"`
 	CookieSecrets        []string      `env:"COOKIE_SECRETS,default=random_hash_key_;random_block_key"`
+	CookieInsecure       bool          `env:"COOKIE_INSECURE,default=false"`
 	TokenGeneratorSecret string        `env:"TOKEN_GENERATOR_SECRET,default=secret"`
 	TimeoutRead          time.Duration `env:"SERVER_TIMEOUT_READ,default=5s"`
 	TimeoutWrite         time.Duration `env:"SERVER_TIMEOUT_WRITE,default=10s"`
@@ -45,6 +46,7 @@ type ServerConf struct {
 	GithubAppWebhookSecret string `env:"GITHUB_APP_WEBHOOK_SECRET"`
 	GithubAppID            string `env:"GITHUB_APP_ID"`
 	GithubAppSecretPath    string `env:"GITHUB_APP_SECRET_PATH"`
+	GithubAppSecret        []byte
 
 	GoogleClientID         string `env:"GOOGLE_CLIENT_ID"`
 	GoogleClientSecret     string `env:"GOOGLE_CLIENT_SECRET"`
@@ -60,9 +62,10 @@ type ServerConf struct {
 	SlackClientID     string `env:"SLACK_CLIENT_ID"`
 	SlackClientSecret string `env:"SLACK_CLIENT_SECRET"`
 
-	IronPlansAPIKey    string `env:"IRON_PLANS_API_KEY"`
-	IronPlansServerURL string `env:"IRON_PLANS_SERVER_URL"`
-	WhitelistedUsers   []uint `env:"WHITELISTED_USERS"`
+	BillingPrivateKey       string `env:"BILLING_PRIVATE_KEY"`
+	BillingPrivateServerURL string `env:"BILLING_PRIVATE_URL"`
+	BillingPublicServerURL  string `env:"BILLING_PUBLIC_URL"`
+	WhitelistedUsers        []uint `env:"WHITELISTED_USERS"`
 
 	DOClientID     string `env:"DO_CLIENT_ID"`
 	DOClientSecret string `env:"DO_CLIENT_SECRET"`
@@ -116,6 +119,9 @@ type ServerConf struct {
 
 	// Default Cluster
 	DefaultKubeConfigFile string `env:"DEFAULT_KUBE_CONFIG_FILE"`
+
+	// Enable gitlab integration
+	EnableGitlab bool `env:"ENABLE_GITLAB,default=false"`
 }
 
 // DBConf is the database configuration: if generated from environment variables,

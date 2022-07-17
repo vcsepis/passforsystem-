@@ -23,9 +23,12 @@ type Repository interface {
 	OAuthIntegration() OAuthIntegrationRepository
 	GCPIntegration() GCPIntegrationRepository
 	AWSIntegration() AWSIntegrationRepository
+	AzureIntegration() AzureIntegrationRepository
 	GithubAppInstallation() GithubAppInstallationRepository
 	GithubAppOAuthIntegration() GithubAppOAuthIntegrationRepository
 	SlackIntegration() SlackIntegrationRepository
+	GitlabIntegration() GitlabIntegrationRepository
+	GitlabAppOAuthIntegration() GitlabAppOAuthIntegrationRepository
 	NotificationConfig() NotificationConfigRepository
 	JobNotificationConfig() JobNotificationConfigRepository
 	BuildEvent() BuildEventRepository
@@ -35,4 +38,8 @@ type Repository interface {
 	CredentialsExchangeToken() CredentialsExchangeTokenRepository
 	BuildConfig() BuildConfigRepository
 	Allowlist() AllowlistRepository
+	APIToken() APITokenRepository
+	Policy() PolicyRepository
+	Tag() TagRepository
+	Stack() StackRepository
 }

@@ -25,7 +25,8 @@ export const integrationList: any = {
     buttonText: "Link a Github Account",
   },
   slack: {
-    icon: "https://user-images.githubusercontent.com/5147537/54070671-0a173780-4263-11e9-8946-09ac0e37d8c6.png",
+    icon:
+      "https://user-images.githubusercontent.com/5147537/54070671-0a173780-4263-11e9-8946-09ac0e37d8c6.png",
     label: "Slack",
     buttonText: "Install Application",
   },
@@ -78,6 +79,16 @@ export const integrationList: any = {
       "https://cdn4.iconfinder.com/data/icons/logos-and-brands/512/97_Docker_logo_logos-512.png",
     label: "Digital Ocean Container Registry (DOCR)",
   },
+  aks: {
+    icon:
+      "https://cdn4.iconfinder.com/data/icons/logos-and-brands/512/97_Docker_logo_logos-512.png",
+    label: "Azure Kubernetes Service (AKS)",
+  },
+  acr: {
+    icon:
+      "https://cdn4.iconfinder.com/data/icons/logos-and-brands/512/97_Docker_logo_logos-512.png",
+    label: "Azure Container Registry (ACR)",
+  },
   aws: {
     icon: aws,
     label: "AWS",
@@ -96,12 +107,18 @@ export const integrationList: any = {
   },
   gitlab: {
     icon: "https://about.gitlab.com/images/press/logo/png/gitlab-icon-rgb.png",
-    label: "Gitlab",
+    label: "GitLab",
+    buttonText: "Add an Instance",
   },
   rds: {
     icon:
       "https://cdn2.iconfinder.com/data/icons/amazon-aws-stencils/100/Database_copy_Amazon_RDS-512.png",
     label: "Amazon Relational Database Service",
+  },
+  s3: {
+    icon:
+      "https://cdn2.iconfinder.com/data/icons/amazon-aws-stencils/100/Database_copy_Amazon_RDS-512.png",
+    label: "Amazon S3 Bucket",
   },
 };
 
@@ -118,3 +135,12 @@ export const getIgnoreCase = (object: any, key: string) => {
     Object.keys(object).find((k) => k.toLowerCase() === key.toLowerCase())
   ];
 };
+
+export const PORTER_IMAGE_TEMPLATES = [
+  "porterdev/hello-porter-job",
+  "porterdev/hello-porter-job:latest",
+  "public.ecr.aws/o1j4x7p4/hello-porter-job",
+  "public.ecr.aws/o1j4x7p4/hello-porter-job:latest",
+  "public.ecr.aws/o1j4x7p4/hello-porter",
+  "public.ecr.aws/o1j4x7p4/hello-porter:latest",
+];

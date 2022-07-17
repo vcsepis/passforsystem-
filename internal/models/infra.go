@@ -51,6 +51,9 @@ type Infra struct {
 	// The AWS integration that was used to create the infra
 	AWSIntegrationID uint
 
+	// The Azure integration that was used to create the infra
+	AzureIntegrationID uint
+
 	// The GCP integration that was used to create the infra
 	GCPIntegrationID uint
 
@@ -122,10 +125,55 @@ func GetOperationID() (string, error) {
 	return encryption.GenerateRandomBytes(10)
 }
 
+type getInfraName struct {
+	Name        string `json:"name"`
+	ClusterName string `json:"cluster_name"`
+	DBName      string `json:"db_name"`
+	BucketName  string `json:"bucket_name"`
+	DOCRName    string `json:"docr_name"`
+	ECRName     string `json:"ecr_name"`
+	ACRName     string `json:"acr_name"`
+}
+
 // ToInfraType generates an external Infra to be shared over REST
 func (i *Infra) ToInfraType() *types.Infra {
+	// perform best attempt to get infra name
+	var name string
+	infraName := &getInfraName{}
+
+	if err := json.Unmarshal(i.LastApplied, infraName); err == nil {
+		if infraName.DOCRName != "" {
+			name = infraName.DOCRName
+		}
+
+		if infraName.ECRName != "" {
+			name = infraName.ECRName
+		}
+
+		if infraName.ACRName != "" {
+			name = infraName.ACRName
+		}
+
+		if infraName.DBName != "" {
+			name = infraName.DBName
+		}
+
+		if infraName.BucketName != "" {
+			name = infraName.BucketName
+		}
+
+		if infraName.ClusterName != "" {
+			name = infraName.ClusterName
+		}
+
+		if infraName.Name != "" {
+			name = infraName.Name
+		}
+	}
+
 	return &types.Infra{
 		ID:               i.ID,
+		Name:             name,
 		CreatedAt:        i.CreatedAt,
 		UpdatedAt:        i.UpdatedAt,
 		ProjectID:        i.ProjectID,

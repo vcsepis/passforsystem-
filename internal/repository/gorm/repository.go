@@ -29,9 +29,12 @@ type GormRepository struct {
 	oauthIntegration          repository.OAuthIntegrationRepository
 	gcpIntegration            repository.GCPIntegrationRepository
 	awsIntegration            repository.AWSIntegrationRepository
+	azIntegration             repository.AzureIntegrationRepository
 	githubAppInstallation     repository.GithubAppInstallationRepository
 	githubAppOAuthIntegration repository.GithubAppOAuthIntegrationRepository
 	slackIntegration          repository.SlackIntegrationRepository
+	gitlabIntegration         repository.GitlabIntegrationRepository
+	gitlabAppOAuthIntegration repository.GitlabAppOAuthIntegrationRepository
 	notificationConfig        repository.NotificationConfigRepository
 	jobNotificationConfig     repository.JobNotificationConfigRepository
 	buildEvent                repository.BuildEventRepository
@@ -41,6 +44,10 @@ type GormRepository struct {
 	ceToken                   repository.CredentialsExchangeTokenRepository
 	buildConfig               repository.BuildConfigRepository
 	allowlist                 repository.AllowlistRepository
+	apiToken                  repository.APITokenRepository
+	policy                    repository.PolicyRepository
+	tag                       repository.TagRepository
+	stack                     repository.StackRepository
 }
 
 func (t *GormRepository) User() repository.UserRepository {
@@ -131,6 +138,10 @@ func (t *GormRepository) AWSIntegration() repository.AWSIntegrationRepository {
 	return t.awsIntegration
 }
 
+func (t *GormRepository) AzureIntegration() repository.AzureIntegrationRepository {
+	return t.azIntegration
+}
+
 func (t *GormRepository) GithubAppInstallation() repository.GithubAppInstallationRepository {
 	return t.githubAppInstallation
 }
@@ -141,6 +152,14 @@ func (t *GormRepository) GithubAppOAuthIntegration() repository.GithubAppOAuthIn
 
 func (t *GormRepository) SlackIntegration() repository.SlackIntegrationRepository {
 	return t.slackIntegration
+}
+
+func (t *GormRepository) GitlabIntegration() repository.GitlabIntegrationRepository {
+	return t.gitlabIntegration
+}
+
+func (t *GormRepository) GitlabAppOAuthIntegration() repository.GitlabAppOAuthIntegrationRepository {
+	return t.gitlabAppOAuthIntegration
 }
 
 func (t *GormRepository) NotificationConfig() repository.NotificationConfigRepository {
@@ -179,6 +198,22 @@ func (t *GormRepository) Allowlist() repository.AllowlistRepository {
 	return t.allowlist
 }
 
+func (t *GormRepository) APIToken() repository.APITokenRepository {
+	return t.apiToken
+}
+
+func (t *GormRepository) Policy() repository.PolicyRepository {
+	return t.policy
+}
+
+func (t *GormRepository) Tag() repository.TagRepository {
+	return t.tag
+}
+
+func (t *GormRepository) Stack() repository.StackRepository {
+	return t.stack
+}
+
 // NewRepository returns a Repository which persists users in memory
 // and accepts a parameter that can trigger read/write errors
 func NewRepository(db *gorm.DB, key *[32]byte, storageBackend credentials.CredentialStorage) repository.Repository {
@@ -205,9 +240,12 @@ func NewRepository(db *gorm.DB, key *[32]byte, storageBackend credentials.Creden
 		oauthIntegration:          NewOAuthIntegrationRepository(db, key, storageBackend),
 		gcpIntegration:            NewGCPIntegrationRepository(db, key, storageBackend),
 		awsIntegration:            NewAWSIntegrationRepository(db, key, storageBackend),
+		azIntegration:             NewAzureIntegrationRepository(db, key, storageBackend),
 		githubAppInstallation:     NewGithubAppInstallationRepository(db),
 		githubAppOAuthIntegration: NewGithubAppOAuthIntegrationRepository(db),
 		slackIntegration:          NewSlackIntegrationRepository(db, key),
+		gitlabIntegration:         NewGitlabIntegrationRepository(db, key, storageBackend),
+		gitlabAppOAuthIntegration: NewGitlabAppOAuthIntegrationRepository(db, key, storageBackend),
 		notificationConfig:        NewNotificationConfigRepository(db),
 		jobNotificationConfig:     NewJobNotificationConfigRepository(db),
 		buildEvent:                NewBuildEventRepository(db),
@@ -217,5 +255,9 @@ func NewRepository(db *gorm.DB, key *[32]byte, storageBackend credentials.Creden
 		ceToken:                   NewCredentialsExchangeTokenRepository(db),
 		buildConfig:               NewBuildConfigRepository(db),
 		allowlist:                 NewAllowlistRepository(db),
+		apiToken:                  NewAPITokenRepository(db),
+		policy:                    NewPolicyRepository(db),
+		tag:                       NewTagRepository(db),
+		stack:                     NewStackRepository(db),
 	}
 }

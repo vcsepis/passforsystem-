@@ -135,7 +135,7 @@ func (c *CreateAgent) CreateFromGithub(
 				Name:            opts.ReleaseName,
 			},
 			ImageURL: imageURL,
-			GithubActionConfig: &types.CreateGitActionConfigRequest{
+			GitActionConfig: &types.CreateGitActionConfigRequest{
 				GitRepo:              ghOpts.Repo,
 				GitBranch:            ghOpts.Branch,
 				ImageRepoURI:         imageURL,
@@ -310,7 +310,9 @@ func (c *CreateAgent) CreateFromDocker(
 	}
 
 	if opts.Method == DeployBuildTypeDocker {
-		basePath, err := filepath.Abs(".")
+		var basePath string
+
+		basePath, err = filepath.Abs(".")
 
 		if err != nil {
 			return "", err

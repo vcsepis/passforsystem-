@@ -8,6 +8,7 @@ import (
 	"github.com/porter-dev/porter/api/server/shared"
 	"github.com/porter-dev/porter/api/server/shared/apierrors"
 	"github.com/porter-dev/porter/api/server/shared/config"
+	"github.com/porter-dev/porter/api/server/shared/requestutils"
 	"github.com/porter-dev/porter/api/types"
 	"github.com/porter-dev/porter/internal/models"
 )
@@ -28,13 +29,14 @@ func NewDeleteNamespaceHandler(
 }
 
 func (c *DeleteNamespaceHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	request := &types.DeleteNamespaceRequest{}
+	cluster, _ := r.Context().Value(types.ClusterScope).(*models.Cluster)
 
-	if ok := c.DecodeAndValidate(w, r, request); !ok {
+	namespace, reqErr := requestutils.GetURLParamString(r, types.URLParamNamespace)
+
+	if reqErr != nil {
+		c.HandleAPIError(w, r, apierrors.NewErrPassThroughToClient(reqErr, http.StatusBadRequest))
 		return
 	}
-
-	cluster, _ := r.Context().Value(types.ClusterScope).(*models.Cluster)
 
 	agent, err := c.GetAgent(r, cluster, "")
 
@@ -43,7 +45,7 @@ func (c *DeleteNamespaceHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err := agent.DeleteNamespace(request.Name); err != nil {
+	if err := agent.DeleteNamespace(namespace); err != nil {
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
 		return
 	}

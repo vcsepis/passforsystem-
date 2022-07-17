@@ -1,8 +1,12 @@
+import { PolicyDocType } from "./auth/types";
 import { PullRequest } from "main/home/cluster-dashboard/preview-environments/types";
-import { release } from "process";
 import { baseApi } from "./baseApi";
 
-import { BuildConfig, FullActionConfigType, StorageType } from "./types";
+import { BuildConfig, FullActionConfigType } from "./types";
+import {
+  CreateStackBody,
+  SourceConfig,
+} from "main/home/cluster-dashboard/stacks/types";
 
 /**
  * Generic api call format
@@ -56,6 +60,16 @@ const getGCPIntegration = baseApi<{}, { project_id: number }>(
   ({ project_id }) => `/api/projects/${project_id}/integrations/gcp`
 );
 
+const getAzureIntegration = baseApi<{}, { project_id: number }>(
+  "GET",
+  ({ project_id }) => `/api/projects/${project_id}/integrations/azure`
+);
+
+const getGitlabIntegration = baseApi<{}, { project_id: number }>(
+  "GET",
+  ({ project_id }) => `/api/projects/${project_id}/integrations/gitlab`
+);
+
 const createAWSIntegration = baseApi<
   {
     aws_region: string;
@@ -80,6 +94,42 @@ const overwriteAWSIntegration = baseApi<
   }
 >("POST", (pathParams) => {
   return `/api/projects/${pathParams.project_id}/integrations/aws/overwrite`;
+});
+
+const updateClusterName = baseApi<
+  {
+    name: string;
+    aws_cluster_id?: string;
+  },
+  {
+    project_id: number;
+    cluster_id: number;
+  }
+>("POST", (pathParams) => {
+  return `/api/projects/${pathParams.project_id}/clusters/${pathParams.cluster_id}`;
+});
+
+const createAzureIntegration = baseApi<
+  {
+    azure_client_id: string;
+    azure_subscription_id: string;
+    azure_tenant_id: string;
+    service_principal_key: string;
+  },
+  { id: number }
+>("POST", (pathParams) => {
+  return `/api/projects/${pathParams.id}/integrations/azure`;
+});
+
+const createGitlabIntegration = baseApi<
+  {
+    instance_url: string;
+    client_id: string;
+    client_secret: string;
+  },
+  { id: number }
+>("POST", (pathParams) => {
+  return `/api/projects/${pathParams.id}/integrations/gitlab`;
 });
 
 const createEmailVerification = baseApi<{}, {}>("POST", (pathParams) => {
@@ -162,6 +212,32 @@ const listEnvironments = baseApi<
 >("GET", (pathParams) => {
   let { project_id, cluster_id } = pathParams;
   return `/api/projects/${project_id}/clusters/${cluster_id}/environments`;
+});
+
+const getEnvironment = baseApi<
+  {},
+  {
+    project_id: number;
+    cluster_id: number;
+    environment_id: number;
+  }
+>("GET", (pathParams) => {
+  let { project_id, cluster_id, environment_id } = pathParams;
+  return `/api/projects/${project_id}/clusters/${cluster_id}/environments/${environment_id}`;
+});
+
+const toggleNewCommentForEnvironment = baseApi<
+  {
+    disable: boolean;
+  },
+  {
+    project_id: number;
+    cluster_id: number;
+    environment_id: number;
+  }
+>("PATCH", (pathParams) => {
+  let { project_id, cluster_id, environment_id } = pathParams;
+  return `/api/projects/${project_id}/clusters/${cluster_id}/environments/${environment_id}/toggle_new_comment`;
 });
 
 const createGCPIntegration = baseApi<
@@ -325,7 +401,7 @@ const getPRDeploymentList = baseApi<
   return `/api/projects/${project_id}/clusters/${cluster_id}/deployments`;
 });
 
-const getPRDeploymentByCluster = baseApi<
+const getPRDeploymentByEnvironment = baseApi<
   {
     namespace: string;
   },
@@ -337,7 +413,7 @@ const getPRDeploymentByCluster = baseApi<
 >("GET", (pathParams) => {
   const { cluster_id, project_id, environment_id } = pathParams;
 
-  return `/api/projects/${project_id}/clusters/${cluster_id}/${environment_id}/deployment`;
+  return `/api/projects/${project_id}/clusters/${cluster_id}/environments/${environment_id}/deployment`;
 });
 
 const getPRDeployment = baseApi<
@@ -370,11 +446,7 @@ const deletePRDeployment = baseApi<
     deployment_id: number;
   }
 >("DELETE", (pathParams) => {
-  const {
-    cluster_id,
-    project_id,
-    deployment_id,
-  } = pathParams;
+  const { cluster_id, project_id, deployment_id } = pathParams;
   return `/api/projects/${project_id}/clusters/${cluster_id}/deployments/${deployment_id}`;
 });
 
@@ -415,8 +487,9 @@ const deployTemplate = baseApi<
     image_url?: string;
     values?: any;
     name: string;
-    github_action_config?: FullActionConfigType;
+    git_action_config?: FullActionConfigType;
     build_config?: any;
+    synced_env_groups?: string[];
   },
   {
     id: number;
@@ -470,6 +543,21 @@ const detectBuildpack = baseApi<
   }/${encodeURIComponent(pathParams.branch)}/buildpack/detect`;
 });
 
+const detectGitlabBuildpack = baseApi<
+  { dir: string },
+  {
+    project_id: number;
+    integration_id: number;
+    repo_owner: string;
+    repo_name: string;
+    branch: string;
+  }
+>(
+  "GET",
+  ({ project_id, integration_id, repo_name, repo_owner, branch }) =>
+    `/api/projects/${project_id}/integrations/gitlab/${integration_id}/repos/${repo_owner}/${repo_name}/${branch}/buildpack/detect`
+);
+
 const getBranchContents = baseApi<
   {
     dir: string;
@@ -509,6 +597,25 @@ const getProcfileContents = baseApi<
     pathParams.name
   }/${encodeURIComponent(pathParams.branch)}/procfile`;
 });
+
+const getGitlabProcfileContents = baseApi<
+  {
+    path: string;
+  },
+  {
+    project_id: number;
+    integration_id: number;
+    owner: string;
+    name: string;
+    branch: string;
+  }
+>(
+  "GET",
+  ({ project_id, integration_id, owner, name, branch }) =>
+    `/api/projects/${project_id}/integrations/gitlab/${integration_id}/repos/${owner}/${name}/${encodeURIComponent(
+      branch
+    )}/procfile`
+);
 
 const getBranches = baseApi<
   {},
@@ -713,6 +820,7 @@ const provisionInfra = baseApi<
     aws_integration_id?: number;
     gcp_integration_id?: number;
     do_integration_id?: number;
+    azure_integration_id?: number;
     cluster_id?: number;
   },
   {
@@ -1122,6 +1230,7 @@ const getMetadata = baseApi<{}, {}>("GET", () => {
 const postWelcome = baseApi<{
   email: string;
   isCompany: boolean;
+  name: string;
   company: string;
   role: string;
 }>("POST", () => {
@@ -1373,16 +1482,15 @@ const createNamespace = baseApi<
 });
 
 const deleteNamespace = baseApi<
-  {
-    name: string;
-  },
+  {},
   {
     id: number;
     cluster_id: number;
+    namespace: string;
   }
 >("DELETE", (pathParams) => {
-  let { id, cluster_id } = pathParams;
-  return `/api/projects/${id}/clusters/${cluster_id}/namespaces/delete`;
+  let { id, cluster_id, namespace } = pathParams;
+  return `/api/projects/${id}/clusters/${cluster_id}/namespaces/${namespace}`;
 });
 
 const deleteJob = baseApi<
@@ -1400,6 +1508,39 @@ const stopJob = baseApi<
   let { id, name, namespace, cluster_id } = pathParams;
   return `/api/projects/${id}/clusters/${cluster_id}/namespaces/${namespace}/jobs/${name}/stop`;
 });
+
+const listAPITokens = baseApi<{}, { project_id: number }>(
+  "GET",
+  ({ project_id }) => `/api/projects/${project_id}/api_token`
+);
+
+const getAPIToken = baseApi<{}, { project_id: number; token: string }>(
+  "GET",
+  ({ project_id, token }) => `/api/projects/${project_id}/api_token/${token}`
+);
+
+const revokeAPIToken = baseApi<{}, { project_id: number; token: string }>(
+  "POST",
+  ({ project_id, token }) =>
+    `/api/projects/${project_id}/api_token/${token}/revoke`
+);
+
+const createAPIToken = baseApi<
+  {
+    name: string;
+    policy_uid: string;
+    expires_at?: string;
+  },
+  { project_id: number }
+>("POST", ({ project_id }) => `/api/projects/${project_id}/api_token`);
+
+const createPolicy = baseApi<
+  {
+    name: string;
+    policy: PolicyDocType[];
+  },
+  { project_id: number }
+>("POST", ({ project_id }) => `/api/projects/${project_id}/policy`);
 
 const getAvailableRoles = baseApi<{}, { project_id: number }>(
   "GET",
@@ -1707,6 +1848,25 @@ const updateBuildConfig = baseApi<
     `/api/projects/${project_id}/clusters/${cluster_id}/namespaces/${namespace}/releases/${release_name}/buildconfig`
 );
 
+const updateGitActionConfig = baseApi<
+  {
+    git_action_config: {
+      git_branch: string;
+    };
+  },
+  {
+    project_id: number;
+    cluster_id: number;
+    namespace: string;
+    release_name: string;
+    revision?: 0; // Always update latest
+  }
+>(
+  "PATCH",
+  ({ project_id, cluster_id, namespace, release_name, revision = 0 }) =>
+    `/api/projects/${project_id}/clusters/${cluster_id}/namespaces/${namespace}/releases/${release_name}/${revision}/git_action_config`
+);
+
 const reRunGHWorkflow = baseApi<
   {},
   {
@@ -1757,6 +1917,178 @@ const triggerPreviewEnvWorkflow = baseApi<
     `/api/projects/${project_id}/clusters/${cluster_id}/deployments/${deployment_id}/trigger_workflow`
 );
 
+const getTagsByProjectId = baseApi<{}, { project_id: number }>(
+  "GET",
+  ({ project_id }) => `/api/projects/${project_id}/tags`
+);
+
+const createTag = baseApi<
+  { name: string; color: string },
+  { project_id: number }
+>("POST", ({ project_id }) => `/api/projects/${project_id}/tags`);
+
+const updateReleaseTags = baseApi<
+  {
+    tags: string[];
+  },
+  {
+    project_id: number;
+    cluster_id: number;
+    namespace: string;
+    release_name: string;
+  }
+>(
+  "PATCH",
+  ({ project_id, cluster_id, namespace, release_name }) =>
+    `/api/projects/${project_id}/clusters/${cluster_id}/namespaces/${namespace}/releases/${release_name}/0/update_tags`
+);
+
+const getGitProviders = baseApi<{}, { project_id: number }>(
+  "GET",
+  ({ project_id }) => `/api/projects/${project_id}/integrations/git`
+);
+
+const getGitlabRepos = baseApi<
+  {},
+  { project_id: number; integration_id: number }
+>(
+  "GET",
+  ({ project_id, integration_id }) =>
+    `/api/projects/${project_id}/integrations/gitlab/${integration_id}/repos`
+);
+
+const getGitlabBranches = baseApi<
+  {},
+  {
+    project_id: number;
+    integration_id: number;
+    repo_owner: string;
+    repo_name: string;
+  }
+>(
+  "GET",
+  ({ project_id, integration_id, repo_owner, repo_name }) =>
+    `/api/projects/${project_id}/integrations/gitlab/${integration_id}/repos/${repo_owner}/${repo_name}/branches`
+);
+
+const getGitlabFolderContent = baseApi<
+  {
+    dir: string;
+  },
+  {
+    project_id: number;
+    integration_id: number;
+    repo_owner: string;
+    repo_name: string;
+    branch: string;
+  }
+>(
+  "GET",
+  ({ project_id, integration_id, repo_owner, repo_name, branch }) =>
+    `/api/projects/${project_id}/integrations/gitlab/${integration_id}/repos/${repo_owner}/${repo_name}/${branch}/contents`
+);
+
+// STACKS
+
+const createStack = baseApi<
+  CreateStackBody,
+  {
+    project_id: number;
+    cluster_id: number;
+    namespace: string;
+  }
+>(
+  "POST",
+  ({ project_id, cluster_id, namespace }) =>
+    `/api/v1/projects/${project_id}/clusters/${cluster_id}/namespaces/${namespace}/stacks`
+);
+
+const listStacks = baseApi<
+  {},
+  { project_id: number; cluster_id: number; namespace: string }
+>(
+  "GET",
+  ({ project_id, cluster_id, namespace }) =>
+    `/api/v1/projects/${project_id}/clusters/${cluster_id}/namespaces/${namespace}/stacks`
+);
+
+const getStack = baseApi<
+  {},
+  {
+    project_id: number;
+    cluster_id: number;
+    namespace: string;
+    stack_id: string;
+  }
+>(
+  "GET",
+  ({ project_id, cluster_id, namespace, stack_id }) =>
+    `/api/v1/projects/${project_id}/clusters/${cluster_id}/namespaces/${namespace}/stacks/${stack_id}`
+);
+
+const getStackRevision = baseApi<
+  {},
+  {
+    project_id: number;
+    cluster_id: number;
+    namespace: string;
+    stack_id: string;
+    revision_id: number;
+  }
+>(
+  "GET",
+  ({ project_id, cluster_id, namespace, stack_id, revision_id }) =>
+    `/api/v1/projects/${project_id}/clusters/${cluster_id}/namespaces/${namespace}/stacks/${stack_id}/${revision_id}`
+);
+
+const rollbackStack = baseApi<
+  {
+    target_revision: number;
+  },
+  {
+    project_id: number;
+    cluster_id: number;
+    namespace: string;
+    stack_id: string;
+  }
+>(
+  "POST",
+  ({ project_id, cluster_id, namespace, stack_id }) =>
+    `/api/v1/projects/${project_id}/clusters/${cluster_id}/namespaces/${namespace}/stacks/${stack_id}/rollback`
+);
+
+const deleteStack = baseApi<
+  {},
+  {
+    project_id: number;
+    cluster_id: number;
+    namespace: string;
+    stack_id: string;
+  }
+>(
+  "DELETE",
+  ({ project_id, cluster_id, namespace, stack_id }) =>
+    `/api/v1/projects/${project_id}/clusters/${cluster_id}/namespaces/${namespace}/stacks/${stack_id}`
+);
+
+const updateStackSourceConfig = baseApi<
+  {
+    source_configs: SourceConfig[];
+  },
+  {
+    project_id: number;
+    cluster_id: number;
+    namespace: string;
+    stack_id: string;
+  }
+>(
+  "PUT",
+  ({ project_id, cluster_id, namespace, stack_id }) =>
+    `/api/v1/projects/${project_id}/clusters/${cluster_id}/namespaces/${namespace}/stacks/${stack_id}/source`
+);
+
+const getGithubStatus = baseApi<{}, {}>("GET", ({}) => `/api/status/github`);
+
 // Bundle export to allow default api import (api.<method> is more readable)
 export default {
   checkAuth,
@@ -1765,14 +2097,21 @@ export default {
   connectDORegistry,
   getAWSIntegration,
   getGCPIntegration,
+  getAzureIntegration,
+  getGitlabIntegration,
   createAWSIntegration,
   overwriteAWSIntegration,
+  updateClusterName,
+  createAzureIntegration,
+  createGitlabIntegration,
   createEmailVerification,
   createEnvironment,
   deleteEnvironment,
   createPreviewEnvironmentDeployment,
   reenablePreviewEnvironmentDeployment,
   listEnvironments,
+  getEnvironment,
+  toggleNewCommentForEnvironment,
   createGCPIntegration,
   createInvite,
   createNamespace,
@@ -1797,6 +2136,7 @@ export default {
   destroyInfra,
   updateDatabaseStatus,
   detectBuildpack,
+  detectGitlabBuildpack,
   getBranchContents,
   getBranches,
   getMetadata,
@@ -1812,7 +2152,7 @@ export default {
   getClusterNode,
   getConfigMap,
   getPRDeploymentList,
-  getPRDeploymentByCluster,
+  getPRDeploymentByEnvironment,
   getPRDeployment,
   getGHAWorkflowTemplate,
   getGitRepoList,
@@ -1849,6 +2189,7 @@ export default {
   getOAuthIds,
   getPodEvents,
   getProcfileContents,
+  getGitlabProcfileContents,
   getProjectClusters,
   getProjectRegistries,
   getProjectRepos,
@@ -1882,6 +2223,11 @@ export default {
   deleteJob,
   stopJob,
   updateInvite,
+  listAPITokens,
+  getAPIToken,
+  revokeAPIToken,
+  createAPIToken,
+  createPolicy,
   getAvailableRoles,
   getCollaborators,
   updateCollaborator,
@@ -1919,6 +2265,26 @@ export default {
   upgradePorterAgent,
   deletePRDeployment,
   updateBuildConfig,
+  updateGitActionConfig,
   reRunGHWorkflow,
   triggerPreviewEnvWorkflow,
+  getTagsByProjectId,
+  createTag,
+  updateReleaseTags,
+  getGitProviders,
+  getGitlabRepos,
+  getGitlabBranches,
+  getGitlabFolderContent,
+
+  // STACKS
+  listStacks,
+  getStack,
+  getStackRevision,
+  createStack,
+  rollbackStack,
+  deleteStack,
+  updateStackSourceConfig,
+
+  // STATUS
+  getGithubStatus,
 };

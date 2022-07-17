@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 
 import PorterForm from "./PorterForm";
-import { PorterFormData } from "./types";
+import { InjectedProps, PorterFormData } from "./types";
 import { PorterFormContextProvider } from "./PorterFormContextProvider";
 
 type PropsType = {
   formData: any;
   valuesToOverride?: any;
   isReadOnly?: boolean;
-  onSubmit?: (values: any) => void;
+  onSubmit?: (values: any, cb?: () => void) => void;
   renderTabContents?: (currentTab: string, submitValues?: any) => any;
   leftTabOptions?: { value: string; label: string }[];
   rightTabOptions?: { value: string; label: string }[];
@@ -22,9 +22,11 @@ type PropsType = {
   includeHiddenFields?: boolean;
   hideBottomSpacer?: boolean;
   redirectTabAfterSave?: string;
+  includeMetadata?: boolean;
+  injectedProps?: InjectedProps;
 };
 
-const PorterFormWrapper: React.FunctionComponent<PropsType> = ({
+const PorterFormWrapper: React.FC<PropsType> = ({
   formData,
   valuesToOverride,
   isReadOnly,
@@ -42,6 +44,8 @@ const PorterFormWrapper: React.FunctionComponent<PropsType> = ({
   includeHiddenFields,
   hideBottomSpacer,
   redirectTabAfterSave,
+  includeMetadata,
+  injectedProps,
 }) => {
   const hashCode = (s: string) => {
     return s?.split("").reduce(function (a, b) {
@@ -79,6 +83,7 @@ const PorterFormWrapper: React.FunctionComponent<PropsType> = ({
         isReadOnly={isReadOnly}
         onSubmit={onSubmit}
         includeHiddenFields={includeHiddenFields}
+        includeMetadata={includeMetadata}
       >
         <PorterForm
           showStateDebugger={showStateDebugger}
@@ -96,6 +101,7 @@ const PorterFormWrapper: React.FunctionComponent<PropsType> = ({
           isLaunch={isLaunch}
           hideSpacer={hideBottomSpacer}
           redirectTabAfterSave={redirectTabAfterSave}
+          injectedProps={injectedProps}
         />
       </PorterFormContextProvider>
     </React.Fragment>

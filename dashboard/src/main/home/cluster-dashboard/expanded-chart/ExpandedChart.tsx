@@ -1,14 +1,8 @@
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import styled from "styled-components";
 import yaml from "js-yaml";
 import backArrow from "assets/back_arrow.png";
-import _ from "lodash";
+import _, { cloneDeep } from "lodash";
 import loadingSrc from "assets/loading.gif";
 
 import { ChartType, ClusterType, ResourceType } from "shared/types";
@@ -28,9 +22,10 @@ import { useWebsockets } from "shared/hooks/useWebsockets";
 import useAuth from "shared/auth/useAuth";
 import TitleSection from "components/TitleSection";
 import DeploymentType from "./DeploymentType";
-import { onlyInLeft } from "shared/array_utils";
 import IncidentsTab from "./incidents/IncidentsTab";
-import BuildSettingsTab from "./BuildSettingsTab";
+import BuildSettingsTab from "./build-settings/BuildSettingsTab";
+import { DisabledNamespacesForIncidents } from "./incidents/DisabledNamespaces";
+import { useStackEnvGroups } from "./useStackEnvGroups";
 
 type Props = {
   namespace: string;
@@ -79,6 +74,12 @@ const ExpandedChart: React.FC<Props> = (props) => {
   const [showRepoTooltip, setShowRepoTooltip] = useState(false);
   const [isAuthorized] = useAuth();
   const [fullScreenLogs, setFullScreenLogs] = useState<boolean>(false);
+
+  const {
+    isStack,
+    stackEnvGroups,
+    isLoadingStackEnvGroups,
+  } = useStackEnvGroups(currentChart);
 
   const {
     newWebsocket,
@@ -221,13 +222,15 @@ const ExpandedChart: React.FC<Props> = (props) => {
     }
   };
 
-  const onSubmit = async (rawValues: any) => {
+  const onSubmit = async (props: any) => {
+    const rawValues = props.values;
+
     // console.log("raw", rawValues);
     // Convert dotted keys to nested objects
     let values: any = {};
 
     // Weave in preexisting values and convert to yaml
-    if (props.currentChart.config) {
+    if (props?.currentChart?.config) {
       values = props.currentChart.config;
     }
 
@@ -244,29 +247,13 @@ const ExpandedChart: React.FC<Props> = (props) => {
       ...values,
     });
 
-    const oldSyncedEnvGroups =
-      props.currentChart.config?.container?.env?.synced || [];
-    const newSyncedEnvGroups = values?.container?.env?.synced || [];
+    const syncedEnvGroups = props?.metadata
+      ? props?.metadata["container.env"]
+      : {};
 
-    const deletedEnvGroups = onlyInLeft<{
-      keys: Array<any>;
-      name: string;
-      version: number;
-    }>(
-      oldSyncedEnvGroups,
-      newSyncedEnvGroups,
-      (oldVal, newVal) => oldVal.name === newVal.name
-    );
+    const deletedEnvGroups = syncedEnvGroups?.deleted || [];
 
-    const addedEnvGroups = onlyInLeft<{
-      keys: Array<any>;
-      name: string;
-      version: number;
-    }>(
-      newSyncedEnvGroups,
-      oldSyncedEnvGroups,
-      (oldVal, newVal) => oldVal.name === newVal.name
-    );
+    const addedEnvGroups = syncedEnvGroups?.added || [];
 
     const addApplicationToEnvGroupPromises = addedEnvGroups.map(
       (envGroup: any) => {
@@ -350,9 +337,9 @@ const ExpandedChart: React.FC<Props> = (props) => {
         err = parsedErr;
       }
 
-      setSaveValueStatus(err);
+      setSaveValueStatus("The api answered with an error");
 
-      setCurrentError(parsedErr);
+      setCurrentError(JSON.stringify(parsedErr));
 
       window.analytics?.track("Failed to Upgrade Chart", {
         chart: currentChart.name,
@@ -427,6 +414,9 @@ const ExpandedChart: React.FC<Props> = (props) => {
       case "metrics":
         return <MetricsSection currentChart={chart} />;
       case "incidents":
+        if (DisabledNamespacesForIncidents.includes(currentChart.namespace)) {
+          return null;
+        }
         return (
           <IncidentsTab
             releaseName={chart?.name}
@@ -517,7 +507,15 @@ const ExpandedChart: React.FC<Props> = (props) => {
           />
         );
       case "build-settings":
-        return <BuildSettingsTab chart={chart} isPreviousVersion={isPreview} />;
+        return (
+          <BuildSettingsTab
+            chart={chart}
+            isPreviousVersion={isPreview}
+            onSave={() => {
+              getChartData(currentChart);
+            }}
+          />
+        );
       default:
     }
   };
@@ -527,7 +525,10 @@ const ExpandedChart: React.FC<Props> = (props) => {
     let rightTabOptions = [] as any[];
     let leftTabOptions = [] as any[];
     leftTabOptions.push({ label: "Status", value: "status" });
-    leftTabOptions.push({ label: "Incidents", value: "incidents" });
+
+    if (!DisabledNamespacesForIncidents.includes(currentChart.namespace)) {
+      leftTabOptions.push({ label: "Incidents", value: "incidents" });
+    }
 
     if (props.isMetricsInstalled) {
       leftTabOptions.push({ label: "Metrics", value: "metrics" });
@@ -542,7 +543,7 @@ const ExpandedChart: React.FC<Props> = (props) => {
       );
     }
 
-    if (currentChart?.git_action_config?.git_repo) {
+    if (currentChart?.git_action_config?.git_repo && !isStack) {
       rightTabOptions.push({
         label: "Build Settings",
         value: "build-settings",
@@ -578,59 +579,6 @@ const ExpandedChart: React.FC<Props> = (props) => {
   const toggleDevOpsMode = () => {
     setDevOpsMode(!devOpsMode);
   };
-
-  const renderIcon = () => {
-    if (
-      currentChart.chart.metadata.icon &&
-      currentChart.chart.metadata.icon !== ""
-    ) {
-      return <Icon src={currentChart.chart.metadata.icon} />;
-    } else {
-      return <i className="material-icons">tonality</i>;
-    }
-  };
-
-  // const chartStatus = useMemo(() => {
-  //   const getAvailability = (kind: string, c: any) => {
-  //     switch (kind?.toLowerCase()) {
-  //       case "deployment":
-  //       case "replicaset":
-  //         return c.status.availableReplicas == c.status.replicas;
-  //       case "statefulset":
-  //         return c.status.readyReplicas == c.status.replicas;
-  //       case "daemonset":
-  //         return c.status.numberAvailable == c.status.desiredNumberScheduled;
-  //     }
-  //   };
-
-  //   const chartStatus = currentChart.info.status;
-
-  //   if (chartStatus === "deployed") {
-  //     for (var uid in controllers) {
-  //       let value = controllers[uid];
-  //       let available = getAvailability(value.metadata.kind, value);
-  //       let progressing = true;
-
-  //       controllers[uid]?.status?.conditions?.forEach((condition: any) => {
-  //         if (
-  //           condition.type == "Progressing" &&
-  //           condition.status == "False" &&
-  //           condition.reason == "ProgressDeadlineExceeded"
-  //         ) {
-  //           progressing = false;
-  //         }
-  //       });
-
-  //       if (!available && progressing) {
-  //         return "loading";
-  //       } else if (!available && !progressing) {
-  //         return "failed";
-  //       }
-  //     }
-  //     return "deployed";
-  //   }
-  //   return chartStatus;
-  // }, [currentChart, controllers]);
 
   const renderUrl = () => {
     if (url) {
@@ -854,36 +802,60 @@ const ExpandedChart: React.FC<Props> = (props) => {
                 latestVersion={currentChart.latest_version}
                 upgradeVersion={handleUpgradeVersion}
               />
-              {(isPreview || leftTabOptions.length > 0) && (
-                <BodyWrapper>
-                  <PorterFormWrapper
-                    formData={currentChart.form}
-                    valuesToOverride={{
-                      namespace: props.namespace,
-                      clusterId: currentCluster.id,
-                    }}
-                    renderTabContents={renderTabContents}
-                    isReadOnly={
-                      isPreview ||
-                      imageIsPlaceholder ||
-                      !isAuthorized("application", "", ["get", "update"])
-                    }
-                    onSubmit={onSubmit}
-                    rightTabOptions={rightTabOptions}
-                    leftTabOptions={leftTabOptions}
-                    color={isPreview ? "#f5cb42" : null}
-                    addendum={
-                      <TabButton
-                        onClick={toggleDevOpsMode}
-                        devOpsMode={devOpsMode}
-                      >
-                        <i className="material-icons">offline_bolt</i> DevOps
-                        Mode
-                      </TabButton>
-                    }
-                    saveValuesStatus={saveValuesStatus}
-                  />
-                </BodyWrapper>
+              {isStack && isLoadingStackEnvGroups ? (
+                <>
+                  <LineBreak />
+                  <Placeholder>
+                    <TextWrap>
+                      <Header>
+                        <Spinner src={loadingSrc} />
+                      </Header>
+                    </TextWrap>
+                  </Placeholder>
+                </>
+              ) : (
+                <>
+                  {(isPreview || leftTabOptions.length > 0) && (
+                    <BodyWrapper>
+                      <PorterFormWrapper
+                        formData={cloneDeep(currentChart.form)}
+                        valuesToOverride={{
+                          namespace: props.namespace,
+                          clusterId: currentCluster.id,
+                        }}
+                        renderTabContents={renderTabContents}
+                        isReadOnly={
+                          isPreview ||
+                          imageIsPlaceholder ||
+                          !isAuthorized("application", "", ["get", "update"])
+                        }
+                        onSubmit={onSubmit}
+                        includeMetadata
+                        rightTabOptions={rightTabOptions}
+                        leftTabOptions={leftTabOptions}
+                        color={isPreview ? "#f5cb42" : null}
+                        addendum={
+                          <TabButton
+                            onClick={toggleDevOpsMode}
+                            devOpsMode={devOpsMode}
+                          >
+                            <i className="material-icons">offline_bolt</i>{" "}
+                            DevOps Mode
+                          </TabButton>
+                        }
+                        saveValuesStatus={saveValuesStatus}
+                        injectedProps={{
+                          "key-value-array": {
+                            availableSyncEnvGroups:
+                              isStack && !isPreview
+                                ? stackEnvGroups
+                                : undefined,
+                          },
+                        }}
+                      />
+                    </BodyWrapper>
+                  )}
+                </>
               )}
             </>
           )}

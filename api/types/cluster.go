@@ -2,7 +2,6 @@ package types
 
 import (
 	"github.com/porter-dev/porter/internal/kubernetes/prometheus"
-	v1 "k8s.io/api/core/v1"
 )
 
 const (
@@ -30,6 +29,9 @@ type Cluster struct {
 
 	// (optional) The aws integration id, if available
 	AWSIntegrationID uint `json:"aws_integration_id"`
+
+	// (optional) The aws cluster id, if available
+	AWSClusterID string `json:"aws_cluster_id,omitempty"`
 }
 
 type ClusterCandidate struct {
@@ -167,6 +169,7 @@ const (
 	DOKS ClusterService = "doks"
 	GKE  ClusterService = "gke"
 	Kube ClusterService = "kube"
+	AKS  ClusterService = "aks"
 )
 
 // ClusterResolverName is the name for a cluster resolve
@@ -184,19 +187,39 @@ const (
 	AWSData          ClusterResolverName = "upload-aws-data"
 )
 
-type ListNamespacesResponse struct {
-	*v1.NamespaceList
-}
-
-type CreateNamespaceRequest struct {
+// NamespaceResponse represents the response type of requests to the namespace resource
+//
+// swagger:model
+type NamespaceResponse struct {
+	// the name of the namespace
+	// example: default
 	Name string `json:"name" form:"required"`
+
+	// the creation timestamp in UTC of the namespace in RFC 1123 format
+	// example: Mon, 13 Jun 2022 17:49:12 GMT
+	CreationTimestamp string `json:"creationTimestamp" form:"required"`
+
+	// the deletion timestamp in UTC of the namespace in RFC 1123 format, if the namespace is deleted
+	// example: Mon, 13 Jun 2022 17:49:12 GMT
+	DeletionTimestamp string `json:"deletionTimestamp,omitempty"`
+
+	// the status of the namespace
+	// enum: active,terminating
+	// example: active
+	Status string `json:"status" form:"required"`
 }
 
-type CreateNamespaceResponse struct {
-	*v1.Namespace
-}
+// ListNamespacesResponse represents the list of all namespaces
+//
+// swagger:model
+type ListNamespacesResponse []*NamespaceResponse
 
-type DeleteNamespaceRequest struct {
+// CreateNamespaceRequest represents the request body to create a namespace
+//
+// swagger:model
+type CreateNamespaceRequest struct {
+	// the name of the namespace to create
+	// example: sampleNS
 	Name string `json:"name" form:"required"`
 }
 
@@ -240,6 +263,8 @@ type CreateClusterCandidateRequest struct {
 
 type UpdateClusterRequest struct {
 	Name string `json:"name" form:"required"`
+
+	AWSClusterID string `json:"aws_cluster_id"`
 }
 
 type ListClusterResponse []*Cluster

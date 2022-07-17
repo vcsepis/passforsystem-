@@ -12,9 +12,14 @@ import SearchBar from "../SearchBar";
 type Props = {
   actionConfig: ActionConfigType;
   setBranch: (x: string) => void;
+  currentBranch?: string;
 };
 
-const BranchList: React.FC<Props> = ({ setBranch, actionConfig }) => {
+const BranchList: React.FC<Props> = ({
+  setBranch,
+  actionConfig,
+  currentBranch,
+}) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [branches, setBranches] = useState<string[]>([]);
@@ -24,28 +29,56 @@ const BranchList: React.FC<Props> = ({ setBranch, actionConfig }) => {
 
   useEffect(() => {
     // Get branches
-    api
-      .getBranches(
-        "<token>",
-        {},
-        {
-          project_id: currentProject.id,
-          git_repo_id: actionConfig.git_repo_id,
-          kind: "github",
-          owner: actionConfig.git_repo.split("/")[0],
-          name: actionConfig.git_repo.split("/")[1],
-        }
-      )
-      .then((res) => {
-        setBranches(res.data);
-        setLoading(false);
-        setError(false);
-      })
-      .catch((err) => {
-        console.log(err);
-        setLoading(false);
-        setError(true);
-      });
+    if (!actionConfig) {
+      return () => {};
+    }
+
+    if (actionConfig?.kind === "github") {
+      api
+        .getBranches(
+          "<token>",
+          {},
+          {
+            project_id: currentProject.id,
+            git_repo_id: actionConfig.git_repo_id,
+            kind: "github",
+            owner: actionConfig.git_repo.split("/")[0],
+            name: actionConfig.git_repo.split("/")[1],
+          }
+        )
+        .then((res) => {
+          setBranches(res.data);
+          setLoading(false);
+          setError(false);
+        })
+        .catch((err) => {
+          console.log(err);
+          setLoading(false);
+          setError(true);
+        });
+    } else {
+      api
+        .getGitlabBranches(
+          "<token>",
+          {},
+          {
+            project_id: currentProject.id,
+            integration_id: actionConfig.gitlab_integration_id,
+            repo_owner: actionConfig.git_repo.split("/")[0],
+            repo_name: actionConfig.git_repo.split("/")[1],
+          }
+        )
+        .then((res) => {
+          setBranches(res.data);
+          setLoading(false);
+          setError(false);
+        })
+        .catch((err) => {
+          console.log(err);
+          setLoading(false);
+          setError(true);
+        });
+    }
   }, []);
 
   const renderBranchList = () => {
@@ -80,6 +113,12 @@ const BranchList: React.FC<Props> = ({ setBranch, actionConfig }) => {
         >
           <img src={branch_icon} alt={"branch icon"} />
           {branch}
+          <div>
+            <span>{actionConfig.git_branch === branch ? "Current" : ""}</span>
+            {currentBranch === branch && (
+              <i className="material-icons-outlined">check</i>
+            )}
+          </div>
         </BranchName>
       );
     });
@@ -93,6 +132,19 @@ const BranchList: React.FC<Props> = ({ setBranch, actionConfig }) => {
         prompt={"Search branches..."}
       />
       <BranchListWrapper>
+        {actionConfig.git_branch && actionConfig.git_branch !== currentBranch && (
+          <WarningRow lastItem={false} disabled>
+            <i className="material-icons-round">warning</i>
+            <span>
+              You have unsaved changes. Please click save to commit your
+              changes.
+              <p>
+                Current Branch: <b>{actionConfig.git_branch}</b>. New branch:{" "}
+                <b>{currentBranch}</b>
+              </p>
+            </span>
+          </WarningRow>
+        )}
         <ExpandedWrapper>{renderBranchList()}</ExpandedWrapper>
       </BranchListWrapper>
     </>
@@ -101,25 +153,20 @@ const BranchList: React.FC<Props> = ({ setBranch, actionConfig }) => {
 
 export default BranchList;
 
-const BranchName = styled.div`
+const BranchName = styled.div<{ lastItem: boolean; disabled?: boolean }>`
   display: flex;
   width: 100%;
   font-size: 13px;
   border-bottom: 1px solid
-    ${(props: { lastItem: boolean }) =>
-      props.lastItem ? "#00000000" : "#606166"};
+    ${(props) => (props.lastItem ? "#00000000" : "#606166")};
   color: #ffffff;
   user-select: none;
   align-items: center;
   padding: 10px 0px;
-  cursor: pointer;
+  cursor: ${(props) => (props.disabled ? "default" : "pointer")};
   background: #ffffff11;
   :hover {
-    background: #ffffff22;
-
-    > i {
-      background: #ffffff22;
-    }
+    background: ${(props) => (props.disabled ? "#ffffff11" : "#ffffff22")};
   }
 
   > img {
@@ -127,6 +174,46 @@ const BranchName = styled.div`
     height: 18px;
     margin-left: 12px;
     margin-right: 12px;
+  }
+  > div {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+
+    > span {
+      text-transform: capitalize;
+
+      :last-child {
+        margin-right: 15px;
+      }
+    }
+
+    > i {
+      margin-left: 10px;
+      margin-right: 15px;
+      font-size: 18px;
+      color: #03b503;
+    }
+  }
+`;
+
+const WarningRow = styled(BranchName)`
+  background: #3d3f43;
+  color: #f4ca42;
+  position: sticky;
+  top: 0;
+  animation: fadeIn 0.5s ease-in-out;
+
+  > i {
+    font-size: 18px;
+    margin-left: 12px;
+    margin-right: 12px;
+  }
+
+  p {
+    margin: 0px;
+    margin-top: 5px;
+    color: #ffffff;
   }
 `;
 
@@ -144,6 +231,7 @@ const BranchListWrapper = styled.div`
   border: 1px solid #ffffff55;
   border-radius: 3px;
   overflow-y: auto;
+  position: relative;
 `;
 
 const ExpandedWrapper = styled.div`

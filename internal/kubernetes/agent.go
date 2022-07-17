@@ -624,7 +624,39 @@ func (a *Agent) CreateNamespace(name string) (*v1.Namespace, error) {
 	)
 
 	if err == nil && checkNS != nil {
-		return checkNS, nil
+		if checkNS.Status.Phase == v1.NamespaceTerminating {
+			// edge case for when the same namespace was previously created
+			// but was deleted and is currently in the "Terminating" phase
+
+			// let us wait for a maximum of 10 seconds
+			timeNow := time.Now().Add(10 * time.Second)
+			stillTerminating := true
+			for {
+				_, err := a.Clientset.CoreV1().Namespaces().Get(
+					context.TODO(),
+					name,
+					metav1.GetOptions{},
+				)
+
+				if err != nil && errors.IsNotFound(err) {
+					stillTerminating = false
+					break
+				}
+
+				time.Sleep(time.Second)
+
+				if time.Now().After(timeNow) {
+					break
+				}
+			}
+
+			if stillTerminating {
+				// the namespace has been in the "Terminating" phase
+				return nil, fmt.Errorf("cannot create namespace %s, stuck in \"Terminating\" phase", name)
+			}
+		} else {
+			return checkNS, nil
+		}
 	}
 
 	namespace := v1.Namespace{
@@ -640,10 +672,25 @@ func (a *Agent) CreateNamespace(name string) (*v1.Namespace, error) {
 	)
 }
 
+// GetNamespace gets the namespace given the name
+func (a *Agent) GetNamespace(name string) (*v1.Namespace, error) {
+	ns, err := a.Clientset.CoreV1().Namespaces().Get(
+		context.Background(),
+		name,
+		metav1.GetOptions{},
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return ns, nil
+}
+
 // DeleteNamespace deletes the namespace given the name.
 func (a *Agent) DeleteNamespace(name string) error {
 	// check if namespace exists
-	_, err := a.Clientset.CoreV1().Namespaces().Get(
+	checkNS, err := a.Clientset.CoreV1().Namespaces().Get(
 		context.TODO(),
 		name,
 		metav1.GetOptions{},
@@ -651,6 +698,12 @@ func (a *Agent) DeleteNamespace(name string) error {
 
 	// if the namespace is not found, don't return an error.
 	if err != nil && errors.IsNotFound(err) {
+		return nil
+	}
+
+	// if the namespace was found but is in the "Terminating" phase
+	// we should ignore it and not return an error
+	if checkNS != nil && checkNS.Status.Phase == v1.NamespaceTerminating {
 		return nil
 	}
 

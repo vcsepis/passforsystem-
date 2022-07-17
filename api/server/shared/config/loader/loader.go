@@ -3,6 +3,7 @@ package loader
 import (
 	"fmt"
 	"github.com/porter-dev/porter/internal/integrations/cloudflare"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 
@@ -92,6 +93,7 @@ func (e *EnvConfigLoader) LoadConfig() (res *config.Config, err error) {
 		&sessionstore.NewStoreOpts{
 			SessionRepository: res.Repo.Session(),
 			CookieSecrets:     envConf.ServerConf.CookieSecrets,
+			Insecure:          envConf.ServerConf.CookieInsecure,
 		},
 	)
 
@@ -167,6 +169,14 @@ func (e *EnvConfigLoader) LoadConfig() (res *config.Config, err error) {
 				BaseURL:      sc.ServerURL,
 			}, sc.GithubAppName, sc.GithubAppWebhookSecret, sc.GithubAppSecretPath, AppID)
 		}
+
+		secret, err := ioutil.ReadFile(sc.GithubAppSecretPath)
+
+		if err != nil {
+			return nil, fmt.Errorf("could not read github app secret: %s", err)
+		}
+
+		sc.GithubAppSecret = append(sc.GithubAppSecret, secret...)
 	}
 
 	if sc.SlackClientID != "" && sc.SlackClientSecret != "" {

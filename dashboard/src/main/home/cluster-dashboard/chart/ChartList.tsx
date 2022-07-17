@@ -27,6 +27,8 @@ type Props = {
   currentView: PorterUrl;
   disableBottomPadding?: boolean;
   closeChartRedirectUrl?: string;
+  selectedTag?: any;
+  appFilters?: string[];
 };
 
 interface JobStatusWithTimeAndVersion extends JobStatusWithTimeType {
@@ -40,6 +42,8 @@ const ChartList: React.FunctionComponent<Props> = ({
   currentView,
   disableBottomPadding,
   closeChartRedirectUrl,
+  selectedTag,
+  appFilters,
 }) => {
   const {
     newWebsocket,
@@ -324,13 +328,32 @@ const ChartList: React.FunctionComponent<Props> = ({
     }
 
     const result = charts
+      .filter((chart) => {
+        if (!selectedTag) {
+          return true;
+        }
+
+        return !!selectedTag.releases?.find((release: ChartType) => {
+          return release.name === chart.name;
+        });
+      })
       .filter((chart: ChartType) => {
-        return (
-          (currentView == "jobs" && chart.chart.metadata.name == "job") ||
-          ((currentView == "applications" ||
-            currentView == "cluster-dashboard") &&
-            chart.chart.metadata.name != "job")
-        );
+        if (currentView === "jobs" && chart.chart.metadata.name === "job") {
+          return true;
+        }
+
+        if (
+          ["applications", "cluster-dashboard"].includes(currentView) &&
+          chart.chart.metadata.name !== "job"
+        ) {
+          return true;
+        }
+
+        if (currentView === "stacks") {
+          return true;
+        }
+
+        return false;
       })
       .filter((chart: ChartType) => {
         if (currentView !== "jobs") {
@@ -345,6 +368,15 @@ const ChartList: React.FunctionComponent<Props> = ({
           { status: null } as any
         );
         return status.status === lastRunStatus;
+      })
+      .filter((chart: ChartType) => {
+        if (!Array.isArray(appFilters) || appFilters?.length === 0) {
+          return true;
+        }
+
+        return appFilters.some((filter) => {
+          return chart.name.toLowerCase() === filter.toLowerCase();
+        });
       });
 
     if (sortType == "Newest") {
@@ -399,7 +431,7 @@ const ChartList: React.FunctionComponent<Props> = ({
     }
 
     return result;
-  }, [charts, sortType, jobStatus, lastRunStatus]);
+  }, [charts, sortType, jobStatus, lastRunStatus, selectedTag]);
 
   const renderChartList = () => {
     if (isLoading || (!namespace && namespace !== "")) {

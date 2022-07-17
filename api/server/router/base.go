@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/go-chi/chi"
-	"github.com/porter-dev/porter/api/server/handlers/billing"
 	"github.com/porter-dev/porter/api/server/handlers/credentials"
 	"github.com/porter-dev/porter/api/server/handlers/gitinstallation"
 	"github.com/porter-dev/porter/api/server/handlers/healthcheck"
@@ -14,11 +13,12 @@ import (
 	"github.com/porter-dev/porter/api/server/handlers/webhook"
 	"github.com/porter-dev/porter/api/server/shared"
 	"github.com/porter-dev/porter/api/server/shared/config"
+	"github.com/porter-dev/porter/api/server/shared/router"
 	"github.com/porter-dev/porter/api/types"
 )
 
-func NewBaseRegisterer(children ...*Registerer) *Registerer {
-	return &Registerer{
+func NewBaseRegisterer(children ...*router.Registerer) *router.Registerer {
+	return &router.Registerer{
 		GetRoutes: GetBaseRoutes,
 		Children:  children,
 	}
@@ -29,9 +29,9 @@ func GetBaseRoutes(
 	config *config.Config,
 	basePath *types.Path,
 	factory shared.APIEndpointFactory,
-	children ...*Registerer,
-) []*Route {
-	routes := make([]*Route, 0)
+	children ...*router.Registerer,
+) []*router.Route {
+	routes := make([]*router.Route, 0)
 
 	// GET /api/readyz -> healthcheck.NewReadyzHandler
 	getReadyzEndpoint := factory.NewAPIEndpoint(
@@ -51,7 +51,7 @@ func GetBaseRoutes(
 		factory.GetResultWriter(),
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: getReadyzEndpoint,
 		Handler:  getReadyzHandler,
 		Router:   r,
@@ -75,7 +75,7 @@ func GetBaseRoutes(
 		factory.GetResultWriter(),
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: getLivezEndpoint,
 		Handler:  getLivezHandler,
 		Router:   r,
@@ -98,7 +98,7 @@ func GetBaseRoutes(
 		factory.GetResultWriter(),
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: getMetadataEndpoint,
 		Handler:  getMetadataHandler,
 		Router:   r,
@@ -121,7 +121,7 @@ func GetBaseRoutes(
 		factory.GetResultWriter(),
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: listClusterIntsEndpoint,
 		Handler:  listClusterIntsHandler,
 		Router:   r,
@@ -144,7 +144,7 @@ func GetBaseRoutes(
 		factory.GetResultWriter(),
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: listRegistryIntsEndpoint,
 		Handler:  listRegistryIntsHandler,
 		Router:   r,
@@ -167,7 +167,7 @@ func GetBaseRoutes(
 		factory.GetResultWriter(),
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: listHelmRepoIntsEndpoint,
 		Handler:  listHelmRepoIntsHandler,
 		Router:   r,
@@ -191,7 +191,7 @@ func GetBaseRoutes(
 		factory.GetResultWriter(),
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: createUserEndpoint,
 		Handler:  createUserHandler,
 		Router:   r,
@@ -215,7 +215,7 @@ func GetBaseRoutes(
 		factory.GetResultWriter(),
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: loginUserEndpoint,
 		Handler:  loginUserHandler,
 		Router:   r,
@@ -239,7 +239,7 @@ func GetBaseRoutes(
 		factory.GetResultWriter(),
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: cliLoginExchangeEndpoint,
 		Handler:  cliLoginExchangeHandler,
 		Router:   r,
@@ -263,7 +263,7 @@ func GetBaseRoutes(
 		factory.GetResultWriter(),
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: passwordInitiateResetEndpoint,
 		Handler:  passwordInitiateResetHandler,
 		Router:   r,
@@ -287,7 +287,7 @@ func GetBaseRoutes(
 		factory.GetResultWriter(),
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: passwordVerifyResetEndpoint,
 		Handler:  passwordVerifyResetHandler,
 		Router:   r,
@@ -311,7 +311,7 @@ func GetBaseRoutes(
 		factory.GetResultWriter(),
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: passwordFinalizeResetEndpoint,
 		Handler:  passwordFinalizeResetHandler,
 		Router:   r,
@@ -336,7 +336,7 @@ func GetBaseRoutes(
 		factory.GetResultWriter(),
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: webhookEndpoint,
 		Handler:  webhookHandler,
 		Router:   r,
@@ -359,7 +359,7 @@ func GetBaseRoutes(
 		config,
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: githubAppInstallEndpoint,
 		Handler:  githubAppInstallHandler,
 		Router:   r,
@@ -384,7 +384,7 @@ func GetBaseRoutes(
 		factory.GetResultWriter(),
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: githubAppWebhookEndpoint,
 		Handler:  githubAppWebhookHandler,
 		Router:   r,
@@ -409,7 +409,7 @@ func GetBaseRoutes(
 		factory.GetResultWriter(),
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: githubLoginStartEndpoint,
 		Handler:  githubLoginStartHandler,
 		Router:   r,
@@ -434,7 +434,7 @@ func GetBaseRoutes(
 		factory.GetResultWriter(),
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: githubLoginCallbackEndpoint,
 		Handler:  githubLoginCallbackHandler,
 		Router:   r,
@@ -459,7 +459,7 @@ func GetBaseRoutes(
 		factory.GetResultWriter(),
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: googleLoginStartEndpoint,
 		Handler:  googleLoginStartHandler,
 		Router:   r,
@@ -484,7 +484,7 @@ func GetBaseRoutes(
 		factory.GetResultWriter(),
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: googleLoginCallbackEndpoint,
 		Handler:  googleLoginCallbackHandler,
 		Router:   r,
@@ -509,33 +509,9 @@ func GetBaseRoutes(
 		factory.GetResultWriter(),
 	)
 
-	routes = append(routes, &Route{
+	routes = append(routes, &router.Route{
 		Endpoint: getCredentialsEndpoint,
 		Handler:  getCredentialsHandler,
-		Router:   r,
-	})
-
-	// POST /api/internal/billing -> billing.NewBillingAddProjectHandler
-	addProjectBillingEndpoint := factory.NewAPIEndpoint(
-		&types.APIRequestMetadata{
-			Verb:   types.APIVerbCreate,
-			Method: types.HTTPVerbPost,
-			Path: &types.Path{
-				Parent:       basePath,
-				RelativePath: "/internal/billing",
-			},
-			Scopes: []types.PermissionScope{},
-		},
-	)
-
-	addProjectBillingHandler := billing.NewBillingAddProjectHandler(
-		config,
-		factory.GetDecoderValidator(),
-	)
-
-	routes = append(routes, &Route{
-		Endpoint: addProjectBillingEndpoint,
-		Handler:  addProjectBillingHandler,
 		Router:   r,
 	})
 
@@ -559,7 +535,7 @@ func GetBaseRoutes(
 			factory.GetResultWriter(),
 		)
 
-		routes = append(routes, &Route{
+		routes = append(routes, &router.Route{
 			Endpoint: githubIncomingWebhookEndpoint,
 			Handler:  githubIncomingWebhookHandler,
 			Router:   r,

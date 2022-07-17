@@ -20,6 +20,7 @@ const (
 	GCP       ClusterAuth = "gcp-sa"
 	AWS       ClusterAuth = "aws-sa"
 	DO        ClusterAuth = "do-oauth"
+	Azure     ClusterAuth = "azure-sp"
 	Local     ClusterAuth = "local"
 	InCluster ClusterAuth = "in-cluster"
 )
@@ -54,16 +55,19 @@ type Cluster struct {
 
 	NotificationsDisabled bool `json:"notifications_disabled"`
 
+	AWSClusterID string
+
 	// ------------------------------------------------------------------
 	// All fields below this line are encrypted before storage
 	// ------------------------------------------------------------------
 
 	// The various auth mechanisms available to the integration
-	KubeIntegrationID uint
-	OIDCIntegrationID uint
-	GCPIntegrationID  uint
-	AWSIntegrationID  uint
-	DOIntegrationID   uint
+	KubeIntegrationID  uint
+	OIDCIntegrationID  uint
+	GCPIntegrationID   uint
+	AWSIntegrationID   uint
+	DOIntegrationID    uint
+	AzureIntegrationID uint
 
 	// A token cache that can be used by an auth mechanism, if desired
 	TokenCache   integrations.ClusterTokenCache `json:"token_cache" gorm:"-" sql:"-"`
@@ -71,6 +75,9 @@ type Cluster struct {
 
 	// CertificateAuthorityData for the cluster, encrypted at rest
 	CertificateAuthorityData []byte `json:"certificate-authority-data,omitempty"`
+
+	// MonitorHelmReleases to trim down the number of revisions per release
+	MonitorHelmReleases bool
 }
 
 // ToProjectType generates an external types.Project to be shared over REST
@@ -83,6 +90,8 @@ func (c *Cluster) ToClusterType() *types.Cluster {
 		serv = types.GKE
 	} else if c.DOIntegrationID != 0 {
 		serv = types.DOKS
+	} else if c.AzureIntegrationID != 0 {
+		serv = types.AKS
 	}
 
 	return &types.Cluster{
@@ -93,6 +102,7 @@ func (c *Cluster) ToClusterType() *types.Cluster {
 		Service:          serv,
 		InfraID:          c.InfraID,
 		AWSIntegrationID: c.AWSIntegrationID,
+		AWSClusterID:     c.AWSClusterID,
 	}
 }
 

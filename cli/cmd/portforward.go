@@ -140,12 +140,12 @@ func portForward(user *types.GetAuthenticatedUserResponse, client *api.Client, a
 			return err
 		}
 
-		pod = pods[podIdx]
+		pod = pods[podIdx-1]
 	} else {
 		pod = pods[0]
 	}
 
-	kubeResp, err := client.GetKubeconfig(context.Background(), cliConf.Project, cliConf.Cluster)
+	kubeResp, err := client.GetKubeconfig(context.Background(), cliConf.Project, cliConf.Cluster, cliConf.Kubeconfig)
 
 	if err != nil {
 		return err

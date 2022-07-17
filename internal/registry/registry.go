@@ -8,8 +8,10 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/porter-dev/porter/internal/models"
@@ -24,6 +26,10 @@ import (
 	"github.com/digitalocean/godo"
 	"github.com/docker/cli/cli/config/configfile"
 	"github.com/docker/cli/cli/config/types"
+
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/containerregistry/armcontainerregistry"
+
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 )
 
 // Registry wraps the gorm Registry model
@@ -69,6 +75,10 @@ func (r *Registry) ListRepositories(
 
 	if r.DOIntegrationID != 0 {
 		return r.listDOCRRepositories(repo, doAuth)
+	}
+
+	if r.AzureIntegrationID != 0 {
+		return r.listACRRepositories(repo)
 	}
 
 	if r.BasicIntegrationID != 0 {
@@ -228,6 +238,174 @@ func (r *Registry) listECRRepositories(repo repository.Repository) ([]*ptypes.Re
 	}
 
 	return res, nil
+}
+
+func (r *Registry) listACRRepositories(repo repository.Repository) ([]*ptypes.RegistryRepository, error) {
+	az, err := repo.AzureIntegration().ReadAzureIntegration(
+		r.ProjectID,
+		r.AzureIntegrationID,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{}
+
+	req, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("%s/v2/_catalog", r.URL),
+		nil,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	req.SetBasicAuth(az.AzureClientID, string(az.ServicePrincipalSecret))
+
+	resp, err := client.Do(req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	gcrResp := gcrRepositoryResp{}
+
+	if err := json.NewDecoder(resp.Body).Decode(&gcrResp); err != nil {
+		return nil, fmt.Errorf("Could not read Azure registry repositories: %v", err)
+	}
+
+	res := make([]*ptypes.RegistryRepository, 0)
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, repo := range gcrResp.Repositories {
+		res = append(res, &ptypes.RegistryRepository{
+			Name: repo,
+			URI:  strings.TrimPrefix(r.URL, "https://") + "/" + repo,
+		})
+	}
+
+	return res, nil
+}
+
+// Returns the username/password pair for the registry
+func (r *Registry) GetACRCredentials(repo repository.Repository) (string, string, error) {
+	az, err := repo.AzureIntegration().ReadAzureIntegration(
+		r.ProjectID,
+		r.AzureIntegrationID,
+	)
+
+	if err != nil {
+		return "", "", err
+	}
+
+	// if the passwords and name aren't set, generate them
+	if az.ACRTokenName == "" || len(az.ACRPassword1) == 0 {
+		az.ACRTokenName = "porter-acr-token"
+
+		// create an acr repo token
+		cred, err := azidentity.NewClientSecretCredential(az.AzureTenantID, az.AzureClientID, string(az.ServicePrincipalSecret), nil)
+
+		if err != nil {
+			return "", "", err
+		}
+
+		scopeMapsClient, err := armcontainerregistry.NewScopeMapsClient(az.AzureSubscriptionID, cred, nil)
+
+		if err != nil {
+			return "", "", err
+		}
+
+		smRes, err := scopeMapsClient.Get(
+			context.Background(),
+			az.ACRResourceGroupName,
+			az.ACRName,
+			"_repositories_admin",
+			nil,
+		)
+
+		if err != nil {
+			return "", "", err
+		}
+
+		tokensClient, err := armcontainerregistry.NewTokensClient(az.AzureSubscriptionID, cred, nil)
+
+		if err != nil {
+			return "", "", err
+		}
+
+		pollerResp, err := tokensClient.BeginCreate(
+			context.Background(),
+			az.ACRResourceGroupName,
+			az.ACRName,
+			"porter-acr-token",
+			armcontainerregistry.Token{
+				Properties: &armcontainerregistry.TokenProperties{
+					ScopeMapID: smRes.ID,
+					Status:     to.Ptr(armcontainerregistry.TokenStatusEnabled),
+				},
+			},
+			nil,
+		)
+
+		if err != nil {
+			return "", "", err
+		}
+
+		tokResp, err := pollerResp.PollUntilDone(context.Background(), 2*time.Second)
+
+		if err != nil {
+			return "", "", err
+		}
+
+		registriesClient, err := armcontainerregistry.NewRegistriesClient(az.AzureSubscriptionID, cred, nil)
+
+		if err != nil {
+			return "", "", err
+		}
+
+		poller, err := registriesClient.BeginGenerateCredentials(
+			context.Background(),
+			az.ACRResourceGroupName,
+			az.ACRName,
+			armcontainerregistry.GenerateCredentialsParameters{
+				TokenID: tokResp.ID,
+			},
+			&armcontainerregistry.RegistriesClientBeginGenerateCredentialsOptions{ResumeToken: ""})
+
+		if err != nil {
+			return "", "", err
+		}
+
+		genCredentialsResp, err := poller.PollUntilDone(context.Background(), 2*time.Second)
+
+		if err != nil {
+			return "", "", err
+		}
+
+		for i, tokPassword := range genCredentialsResp.Passwords {
+			if i == 0 {
+				az.ACRPassword1 = []byte(*tokPassword.Value)
+			} else if i == 1 {
+				az.ACRPassword2 = []byte(*tokPassword.Value)
+			}
+		}
+
+		// update the az integration
+		az, err = repo.AzureIntegration().OverwriteAzureIntegration(
+			az,
+		)
+
+		if err != nil {
+			return "", "", err
+		}
+	}
+
+	return az.ACRTokenName, string(az.ACRPassword1), nil
 }
 
 func (r *Registry) listDOCRRepositories(
@@ -468,6 +646,10 @@ func (r *Registry) ListImages(
 		return r.listECRImages(repoName, repo)
 	}
 
+	if r.AzureIntegrationID != 0 {
+		return r.listACRImages(repoName, repo)
+	}
+
 	if r.GCPIntegrationID != 0 {
 		return r.listGCRImages(repoName, repo)
 	}
@@ -481,6 +663,120 @@ func (r *Registry) ListImages(
 	}
 
 	return nil, fmt.Errorf("error listing images")
+}
+
+func (r *Registry) GetECRPaginatedImages(
+	repoName string,
+	repo repository.Repository,
+	maxResults int64,
+	nextToken *string,
+) ([]*ptypes.Image, *string, error) {
+	aws, err := repo.AWSIntegration().ReadAWSIntegration(
+		r.ProjectID,
+		r.AWSIntegrationID,
+	)
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	sess, err := aws.GetSession()
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	svc := ecr.New(sess)
+
+	resp, err := svc.ListImages(&ecr.ListImagesInput{
+		RepositoryName: &repoName,
+		MaxResults:     &maxResults,
+		NextToken:      nextToken,
+	})
+
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(resp.ImageIds) == 0 {
+		return []*ptypes.Image{}, nil, nil
+	}
+
+	imageIDLen := len(resp.ImageIds)
+	imageDetails := make([]*ecr.ImageDetail, 0)
+	imageIDMap := make(map[string]bool)
+
+	for _, id := range resp.ImageIds {
+		if id != nil && id.ImageTag != nil {
+			imageIDMap[*id.ImageTag] = true
+		}
+	}
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	// AWS API expects the length of imageIDs to be at max 100 at a time
+	for start := 0; start < imageIDLen; start += 100 {
+		end := start + 100
+		if end > imageIDLen {
+			end = imageIDLen
+		}
+
+		wg.Add(1)
+
+		go func(start, end int) {
+			defer wg.Done()
+
+			describeResp, err := svc.DescribeImages(&ecr.DescribeImagesInput{
+				RepositoryName: &repoName,
+				ImageIds:       resp.ImageIds[start:end],
+			})
+
+			if err != nil {
+				return
+			}
+
+			mu.Lock()
+			imageDetails = append(imageDetails, describeResp.ImageDetails...)
+			mu.Unlock()
+		}(start, end)
+	}
+
+	wg.Wait()
+
+	res := make([]*ptypes.Image, 0)
+	imageInfoMap := make(map[string]*ptypes.Image)
+
+	for _, img := range imageDetails {
+		for _, tag := range img.ImageTags {
+			newImage := &ptypes.Image{
+				Digest:         *img.ImageDigest,
+				Tag:            *tag,
+				RepositoryName: repoName,
+				PushedAt:       img.ImagePushedAt,
+			}
+
+			if _, ok := imageIDMap[*tag]; ok {
+				if _, ok := imageInfoMap[*tag]; !ok {
+					imageInfoMap[*tag] = newImage
+				}
+			}
+
+			if len(imageInfoMap) == int(maxResults) {
+				break
+			}
+		}
+
+		if len(imageInfoMap) == int(maxResults) {
+			break
+		}
+	}
+
+	for _, v := range imageInfoMap {
+		res = append(res, v)
+	}
+
+	return res, resp.NextToken, nil
 }
 
 func (r *Registry) listECRImages(repoName string, repo repository.Repository) ([]*ptypes.Image, error) {
@@ -501,52 +797,146 @@ func (r *Registry) listECRImages(repoName string, repo repository.Repository) ([
 
 	svc := ecr.New(sess)
 
+	maxResults := int64(1000)
+
+	var imageIDs []*ecr.ImageIdentifier
+
 	resp, err := svc.ListImages(&ecr.ListImagesInput{
 		RepositoryName: &repoName,
+		MaxResults:     &maxResults,
 	})
 
 	if err != nil {
 		return nil, err
 	}
 
-	describeResp, err := svc.DescribeImages(&ecr.DescribeImagesInput{
-		RepositoryName: &repoName,
-		ImageIds:       resp.ImageIds,
-	})
-
-	if err != nil {
-		return nil, err
+	if len(resp.ImageIds) == 0 {
+		return []*ptypes.Image{}, nil
 	}
 
-	imageDetails := describeResp.ImageDetails
+	imageIDs = append(imageIDs, resp.ImageIds...)
 
-	nextToken := describeResp.NextToken
+	nextToken := resp.NextToken
 
 	for nextToken != nil {
-		describeResp, err := svc.DescribeImages(&ecr.DescribeImagesInput{
+		resp, err := svc.ListImages(&ecr.ListImagesInput{
 			RepositoryName: &repoName,
-			ImageIds:       resp.ImageIds,
+			MaxResults:     &maxResults,
+			NextToken:      nextToken,
 		})
 
 		if err != nil {
 			return nil, err
 		}
 
-		nextToken = describeResp.NextToken
-		imageDetails = append(imageDetails, describeResp.ImageDetails...)
+		imageIDs = append(imageIDs, resp.ImageIds...)
+		nextToken = resp.NextToken
 	}
 
+	imageIDLen := len(imageIDs)
+	imageDetails := make([]*ecr.ImageDetail, 0)
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	// AWS API expects the length of imageIDs to be at max 100 at a time
+	for start := 0; start < imageIDLen; start += 100 {
+		end := start + 100
+		if end > imageIDLen {
+			end = imageIDLen
+		}
+
+		wg.Add(1)
+
+		go func(start, end int) {
+			defer wg.Done()
+
+			describeResp, err := svc.DescribeImages(&ecr.DescribeImagesInput{
+				RepositoryName: &repoName,
+				ImageIds:       imageIDs[start:end],
+			})
+
+			if err != nil {
+				return
+			}
+
+			mu.Lock()
+			imageDetails = append(imageDetails, describeResp.ImageDetails...)
+			mu.Unlock()
+		}(start, end)
+	}
+
+	wg.Wait()
+
 	res := make([]*ptypes.Image, 0)
+	imageInfoMap := make(map[string]*ptypes.Image)
 
 	for _, img := range imageDetails {
 		for _, tag := range img.ImageTags {
-			res = append(res, &ptypes.Image{
+			newImage := &ptypes.Image{
 				Digest:         *img.ImageDigest,
 				Tag:            *tag,
 				RepositoryName: repoName,
 				PushedAt:       img.ImagePushedAt,
-			})
+			}
+
+			if _, ok := imageInfoMap[*tag]; !ok {
+				imageInfoMap[*tag] = newImage
+			}
 		}
+	}
+
+	for _, v := range imageInfoMap {
+		res = append(res, v)
+	}
+
+	return res, nil
+}
+
+func (r *Registry) listACRImages(repoName string, repo repository.Repository) ([]*ptypes.Image, error) {
+	az, err := repo.AzureIntegration().ReadAzureIntegration(
+		r.ProjectID,
+		r.AzureIntegrationID,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// use JWT token to request catalog
+	client := &http.Client{}
+
+	req, err := http.NewRequest(
+		"GET",
+		fmt.Sprintf("%s/v2/%s/tags/list", r.URL, repoName),
+		nil,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	req.SetBasicAuth(az.AzureClientID, string(az.ServicePrincipalSecret))
+
+	resp, err := client.Do(req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	gcrResp := gcrImageResp{}
+
+	if err := json.NewDecoder(resp.Body).Decode(&gcrResp); err != nil {
+		return nil, fmt.Errorf("Could not read GCR repositories: %v", err)
+	}
+
+	res := make([]*ptypes.Image, 0)
+
+	for _, tag := range gcrResp.Tags {
+		res = append(res, &ptypes.Image{
+			RepositoryName: strings.TrimPrefix(repoName, "https://"),
+			Tag:            tag,
+		})
 	}
 
 	return res, nil
@@ -643,10 +1033,31 @@ func (r *Registry) listDOCRImages(
 
 	name := urlArr[1]
 
-	tags, _, err := client.Registry.ListRepositoryTags(context.TODO(), name, repoName, &godo.ListOptions{})
+	var tags []*godo.RepositoryTag
+	opt := &godo.ListOptions{
+		PerPage: 200,
+	}
 
-	if err != nil {
-		return nil, err
+	for {
+		nextTags, resp, err := client.Registry.ListRepositoryTags(context.TODO(), name, repoName, opt)
+
+		if err != nil {
+			return nil, err
+		}
+
+		tags = append(tags, nextTags...)
+
+		if resp.Links == nil || resp.Links.IsLastPage() {
+			break
+		}
+
+		page, err := resp.Links.CurrentPage()
+
+		if err != nil {
+			return nil, err
+		}
+
+		opt.Page = page + 1
 	}
 
 	res := make([]*ptypes.Image, 0)
@@ -845,6 +1256,10 @@ func (r *Registry) GetDockerConfigJSON(
 		conf, err = r.getPrivateRegistryDockerConfigFile(repo)
 	}
 
+	if r.AzureIntegrationID != 0 {
+		conf, err = r.getACRDockerConfigFile(repo)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -1010,6 +1425,34 @@ func (r *Registry) getPrivateRegistryDockerConfigFile(
 				Username: string(basic.Username),
 				Password: string(basic.Password),
 				Auth:     generateAuthToken(string(basic.Username), string(basic.Password)),
+			},
+		},
+	}, nil
+}
+
+func (r *Registry) getACRDockerConfigFile(
+	repo repository.Repository,
+) (*configfile.ConfigFile, error) {
+	username, pw, err := r.GetACRCredentials(repo)
+
+	if err != nil {
+		return nil, err
+	}
+
+	key := r.URL
+
+	if !strings.Contains(key, "http") {
+		key = "https://" + key
+	}
+
+	parsedURL, _ := url.Parse(key)
+
+	return &configfile.ConfigFile{
+		AuthConfigs: map[string]types.AuthConfig{
+			parsedURL.Host: {
+				Username: string(username),
+				Password: string(pw),
+				Auth:     generateAuthToken(string(username), string(pw)),
 			},
 		},
 	}, nil

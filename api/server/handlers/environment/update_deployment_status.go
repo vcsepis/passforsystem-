@@ -1,13 +1,14 @@
 package environment
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/porter-dev/porter/api/server/authz"
 	"github.com/porter-dev/porter/api/server/handlers"
-	"github.com/porter-dev/porter/api/server/handlers/gitinstallation"
 	"github.com/porter-dev/porter/api/server/shared"
 	"github.com/porter-dev/porter/api/server/shared/apierrors"
+	"github.com/porter-dev/porter/api/server/shared/commonutils"
 	"github.com/porter-dev/porter/api/server/shared/config"
 	"github.com/porter-dev/porter/api/types"
 	"github.com/porter-dev/porter/internal/models"
@@ -35,7 +36,7 @@ func (c *UpdateDeploymentStatusHandler) ServeHTTP(w http.ResponseWriter, r *http
 	project, _ := r.Context().Value(types.ProjectScope).(*models.Project)
 	cluster, _ := r.Context().Value(types.ClusterScope).(*models.Cluster)
 
-	owner, name, ok := gitinstallation.GetOwnerAndNameParams(c, w, r)
+	owner, name, ok := commonutils.GetOwnerAndNameParams(c, w, r)
 
 	if !ok {
 		return
@@ -60,6 +61,38 @@ func (c *UpdateDeploymentStatusHandler) ServeHTTP(w http.ResponseWriter, r *http
 
 	if err != nil {
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+		return
+	}
+
+	client, err := getGithubClientFromEnvironment(c.Config(), env)
+
+	if err != nil {
+		c.HandleAPIError(w, r, apierrors.NewErrPassThroughToClient(
+			fmt.Errorf("unable to get github client: %w", err), http.StatusConflict,
+		))
+		return
+	}
+
+	// add a check for the PR to be open before creating a comment
+	prClosed, err := isGithubPRClosed(client, depl.RepoOwner, depl.RepoName, int(depl.PullRequestID))
+
+	if err != nil {
+		c.HandleAPIError(w, r, apierrors.NewErrPassThroughToClient(
+			fmt.Errorf("error fetching details of github PR for deployment ID: %d. Error: %w",
+				depl.ID, err), http.StatusConflict,
+		))
+		return
+	}
+
+	if prClosed {
+		c.HandleAPIError(w, r, apierrors.NewErrPassThroughToClient(fmt.Errorf("Github PR has been closed"),
+			http.StatusConflict))
+		return
+	}
+
+	if depl.Status == types.DeploymentStatusInactive && request.Status != string(types.DeploymentStatusCreating) {
+		// a deployment from "inactive" state can only transition to "creating"
+		c.WriteResult(w, r, depl.ToDeploymentType())
 		return
 	}
 

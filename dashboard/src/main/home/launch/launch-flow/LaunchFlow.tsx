@@ -34,6 +34,7 @@ const defaultActionConfig: ActionConfigType = {
   image_repo_uri: "",
   git_branch: "",
   git_repo_id: 0,
+  kind: "github",
 };
 
 const LaunchFlow: React.FC<PropsType> = (props) => {
@@ -77,16 +78,31 @@ const LaunchFlow: React.FC<PropsType> = (props) => {
       imageRepoUri = selectedRegistry?.url;
     }
 
-    return {
-      git_repo: actionConfig.git_repo,
-      git_branch: branch,
-      registry_id: selectedRegistry?.id,
-      dockerfile_path: dockerfilePath,
-      folder_path: folderPath,
-      image_repo_uri: imageRepoUri,
-      git_repo_id: actionConfig.git_repo_id,
-      should_create_workflow: shouldCreateWorkflow,
-    };
+    if (actionConfig.kind === "github") {
+      return {
+        kind: "github",
+        git_repo: actionConfig.git_repo,
+        git_branch: branch,
+        registry_id: selectedRegistry?.id,
+        dockerfile_path: dockerfilePath,
+        folder_path: folderPath,
+        image_repo_uri: imageRepoUri,
+        git_repo_id: actionConfig.git_repo_id,
+        should_create_workflow: shouldCreateWorkflow,
+      };
+    } else {
+      return {
+        kind: "gitlab",
+        git_repo: actionConfig.git_repo,
+        git_branch: branch,
+        registry_id: selectedRegistry?.id,
+        dockerfile_path: dockerfilePath,
+        folder_path: folderPath,
+        image_repo_uri: imageRepoUri,
+        gitlab_integration_id: actionConfig.gitlab_integration_id,
+        should_create_workflow: shouldCreateWorkflow,
+      };
+    }
   };
 
   const handleSubmitAddon = async (wildcard?: any) => {
@@ -173,6 +189,7 @@ const LaunchFlow: React.FC<PropsType> = (props) => {
     setTimeout(() => {
       pushFiltered(props, dst, ["project_id"], {
         cluster: currentCluster.name,
+        namespace: selectedNamespace,
       });
     }, 500);
   };
@@ -224,8 +241,25 @@ const LaunchFlow: React.FC<PropsType> = (props) => {
       case "doks":
         provider = "digitalocean";
         break;
+      case "aks":
+        provider = "azure";
+        break;
+      case "vke":
+        provider = "vultr";
+        break;
       default:
         provider = "";
+    }
+
+    // Check the server URL to see if we can detect the cluster provider.
+    // There's no standard URL format for GCP that's why it's not currently included
+    if (provider === "") {
+      const server = currentCluster.server;
+
+      if (server.includes("eks")) provider = "eks";
+      else if (server.includes("ondigitalocean")) provider = "digitalocean";
+      else if (server.includes("azmk8s")) provider = "azure";
+      else if (server.includes("vultr")) provider = "vultr";
     }
 
     // don't overwrite for templates that already have a source (i.e. non-Docker templates)
@@ -284,6 +318,8 @@ const LaunchFlow: React.FC<PropsType> = (props) => {
       }
     }
 
+    const synced = values?.container?.env?.synced || [];
+
     try {
       await api.deployTemplate(
         "<token>",
@@ -293,8 +329,9 @@ const LaunchFlow: React.FC<PropsType> = (props) => {
           template_name: props.currentTemplate.name.toLowerCase().trim(),
           template_version: props.currentTemplate?.currentVersion || "latest",
           name: release_name,
-          github_action_config: githubActionConfig,
+          git_action_config: githubActionConfig,
           build_config: buildConfig,
+          synced_env_groups: synced.map((s: any) => s.name),
         },
         {
           id: currentProject.id,
@@ -312,32 +349,6 @@ const LaunchFlow: React.FC<PropsType> = (props) => {
       return;
     }
 
-    // Save application into synced groups
-    const synced = values?.container?.env?.synced || [];
-
-    const addApplicationToEnvGroupPromises = synced.map((envGroup: any) => {
-      return api.addApplicationToEnvGroup(
-        "<token>",
-        {
-          name: envGroup?.name,
-          app_name: release_name,
-        },
-        {
-          project_id: currentProject.id,
-          cluster_id: currentCluster.id,
-          namespace: selectedNamespace,
-        }
-      );
-    });
-
-    try {
-      await Promise.all(addApplicationToEnvGroupPromises);
-    } catch (error) {
-      setCurrentError(
-        "We coudln't sync the env group to the application, please go to your recently deployed application and try again through the environment tab."
-      );
-    }
-
     setSaveValuesStatus("successful");
     // redirect to dashboard with namespace
     setTimeout(() => {
@@ -345,6 +356,7 @@ const LaunchFlow: React.FC<PropsType> = (props) => {
         props.currentTemplate.name === "job" ? "/jobs" : "/applications";
       pushFiltered(props, dst, ["project_id"], {
         cluster: currentCluster.name,
+        namespace: selectedNamespace,
       });
     }, 1000);
   };
@@ -489,5 +501,5 @@ const StyledLaunchFlow = styled.div`
   width: calc(90% - 130px);
   min-width: 300px;
   margin-top: ${(props: { disableMarginTop: boolean }) =>
-    props.disableMarginTop ? "inherit" : "calc(50vh - 380px)"};
+    props.disableMarginTop ? "inherit" : "calc(40vh - 310px)"};
 `;

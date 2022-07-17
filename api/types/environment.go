@@ -14,6 +14,7 @@ type Environment struct {
 	Mode                 string `json:"mode"`
 	DeploymentCount      uint   `json:"deployment_count"`
 	LastDeploymentStatus string `json:"last_deployment_status"`
+	NewCommentsDisabled  bool   `json:"new_comments_disabled"`
 }
 
 type CreateEnvironmentRequest struct {
@@ -69,9 +70,21 @@ type CreateDeploymentRequest struct {
 	PullRequestID uint   `json:"pull_request_id" form:"required"`
 }
 
+type SuccessfullyDeployedResource struct {
+	ReleaseName string `json:"release_name" form:"required"`
+	ReleaseType string `json:"release_type"`
+}
+
 type FinalizeDeploymentRequest struct {
-	Namespace string `json:"namespace" form:"required"`
-	Subdomain string `json:"subdomain" form:"required"`
+	Namespace           string                          `json:"namespace" form:"required"`
+	SuccessfulResources []*SuccessfullyDeployedResource `json:"successful_resources"`
+	Subdomain           string                          `json:"subdomain"`
+}
+
+type FinalizeDeploymentWithErrorsRequest struct {
+	Namespace           string                          `json:"namespace" form:"required"`
+	SuccessfulResources []*SuccessfullyDeployedResource `json:"successful_resources"`
+	Errors              map[string]string               `json:"errors" form:"required"`
 }
 
 type UpdateDeploymentRequest struct {
@@ -110,3 +123,9 @@ type PullRequest struct {
 	BranchFrom string `json:"branch_from"`
 	BranchInto string `json:"branch_into"`
 }
+
+type ToggleNewCommentRequest struct {
+	Disable bool `json:"disable"`
+}
+
+type ListEnvironmentsResponse []*Environment

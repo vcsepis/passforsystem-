@@ -7,6 +7,7 @@ const (
 	OAuthGithub       OAuthIntegrationClient = "github"
 	OAuthDigitalOcean OAuthIntegrationClient = "do"
 	OAuthGoogle       OAuthIntegrationClient = "google"
+	OAuthGitlab       OAuthIntegrationClient = "gitlab"
 )
 
 // OAuthIntegrationClient is the name of an OAuth mechanism client
@@ -125,3 +126,70 @@ type CreateGCPRequest struct {
 type CreateGCPResponse struct {
 	*GCPIntegration
 }
+
+type AzureIntegration struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	ID uint `json:"id"`
+
+	// The id of the user that linked this auth mechanism
+	UserID uint `json:"user_id"`
+
+	// The project that this integration belongs to
+	ProjectID uint `json:"project_id"`
+
+	// The Azure client ID that this is linked to
+	AzureClientID string `json:"azure_client_id"`
+
+	// The Azure subscription ID that this is linked to
+	AzureSubscriptionID string `json:"azure_subscription_id"`
+
+	// The Azure tenant ID that this is linked to
+	AzureTenantID string `json:"azure_tenant_id"`
+}
+
+type CreateAzureRequest struct {
+	AzureClientID       string `json:"azure_client_id" form:"required"`
+	AzureSubscriptionID string `json:"azure_subscription_id" form:"required"`
+	AzureTenantID       string `json:"azure_tenant_id" form:"required"`
+	ServicePrincipalKey string `json:"service_principal_key" form:"required"`
+}
+
+type CreateAzureResponse struct {
+	*AzureIntegration
+}
+
+type ListAzureResponse []*AzureIntegration
+
+type GitlabIntegration struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	ID uint `json:"id"`
+
+	// The project that this integration belongs to
+	ProjectID uint `json:"project_id"`
+
+	InstanceURL string `json:"instance_url"`
+}
+
+type ListGitlabResponse []*GitlabIntegration
+
+type CreateGitlabRequest struct {
+	InstanceURL     string `json:"instance_url"`
+	AppClientID     string `json:"client_id"`
+	AppClientSecret string `json:"client_secret"`
+}
+
+type CreateGitlabResponse struct {
+	*GitlabIntegration
+}
+
+type GitIntegration struct {
+	Provider       string `json:"provider" form:"required"`
+	Name           string `json:"name,omitempty"`
+	InstallationID int64  `json:"installation_id,omitempty"`
+	InstanceURL    string `json:"instance_url,omitempty"`
+	IntegrationID  uint   `json:"integration_id,omitempty"`
+}
+
+type ListGitIntegrationResponse []*GitIntegration

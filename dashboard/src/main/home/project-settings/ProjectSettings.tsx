@@ -12,6 +12,7 @@ import { withAuth, WithAuthProps } from "shared/auth/AuthorizationHoc";
 import { RouteComponentProps, withRouter, WithRouterProps } from "react-router";
 import { getQueryParam } from "shared/routing";
 import BillingPage from "./BillingPage";
+import APITokensSection from "./APITokensSection";
 
 type PropsType = RouteComponentProps & WithAuthProps & {};
 
@@ -42,7 +43,7 @@ class ProjectSettings extends Component<PropsType, StateType> {
       !this.state.tabOptions.find((t) => t.value === "billing")
     ) {
       const tabOptions = this.state.tabOptions;
-      tabOptions.splice(1, 0, { value: "billing", label: "Billing" });
+      // tabOptions.splice(1, 0, { value: "billing", label: "Billing" });
       this.setState({ tabOptions });
       return;
     }
@@ -55,7 +56,7 @@ class ProjectSettings extends Component<PropsType, StateType> {
       const billingIndex = this.state.tabOptions.findIndex(
         (t) => t.value === "billing"
       );
-      tabOptions.splice(billingIndex, 1);
+      // tabOptions.splice(billingIndex, 1);
     }
   }
 
@@ -64,14 +65,26 @@ class ProjectSettings extends Component<PropsType, StateType> {
     this.setState({ projectName: currentProject.name });
     const tabOptions = [];
     tabOptions.push({ value: "manage-access", label: "Manage Access" });
+    tabOptions.push({
+      value: "billing",
+      label: "Billing",
+    });
 
     if (this.props.isAuthorized("settings", "", ["get", "delete"])) {
-      if (this.context?.hasBillingEnabled) {
+      // if (this.context?.hasBillingEnabled) {
+      //   tabOptions.push({
+      //     value: "billing",
+      //     label: "Billing",
+      //   });
+      // }
+
+      if (currentProject?.api_tokens_enabled) {
         tabOptions.push({
-          value: "billing",
-          label: "Billing",
+          value: "api-tokens",
+          label: "API Tokens",
         });
       }
+
       tabOptions.push({
         value: "additional-settings",
         label: "Additional Settings",
@@ -91,15 +104,31 @@ class ProjectSettings extends Component<PropsType, StateType> {
       return <InvitePage />;
     }
 
-    if (
-      this.state.currentTab === "billing" &&
-      this.context?.hasBillingEnabled
-    ) {
-      return <BillingPage />;
-    }
+    // if (
+    //   this.state.currentTab === "billing" &&
+    //   this.context?.hasBillingEnabled
+    // ) {
+    //   return <BillingPage />;
+    // }
 
     if (this.state.currentTab === "manage-access") {
       return <InvitePage />;
+    } else if (this.state.currentTab === "api-tokens") {
+      return <APITokensSection />;
+    } else if (this.state.currentTab === "billing") {
+      return (
+        <Placeholder>
+          <Helper>
+            Visit the{" "}
+            <a
+              href={`/api/projects/${this.context.currentProject?.id}/billing/redirect`}
+            >
+              billing portal
+            </a>{" "}
+            to view plans.
+          </Helper>
+        </Placeholder>
+      );
     } else {
       return (
         <>
@@ -161,6 +190,19 @@ class ProjectSettings extends Component<PropsType, StateType> {
 ProjectSettings.contextType = Context;
 
 export default withRouter(withAuth(ProjectSettings));
+
+const Placeholder = styled.div`
+  width: 100%;
+  height: 200px;
+  background: #ffffff11;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  text-align: center;
+  padding: 0 30px;
+  justify-content: center;
+  padding-bottom: 10px;
+`;
 
 const Warning = styled.div`
   font-size: 13px;

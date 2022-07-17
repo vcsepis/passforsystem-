@@ -1,3 +1,5 @@
+import ValuesYaml from "main/home/cluster-dashboard/expanded-chart/ValuesYaml";
+
 export interface ClusterType {
   id: number;
   name: string;
@@ -6,6 +8,7 @@ export interface ClusterType {
   infra_id?: number;
   service?: string;
   aws_integration_id?: number;
+  aws_cluster_id?: string;
 }
 
 export interface DetailedClusterType extends ClusterType {
@@ -19,6 +22,7 @@ export interface DetailedIngressError {
 }
 
 export interface ChartType {
+  stack_id: string;
   image_repo_uri: string;
   git_action_config: any;
   build_config: BuildConfig;
@@ -49,6 +53,7 @@ export interface ChartType {
   version: number;
   namespace: string;
   latest_version: string;
+  tags: any;
 }
 
 export interface ChartTypeWithExtendedConfig extends ChartType {
@@ -163,6 +168,13 @@ export interface PorterTemplate {
   repo_url?: string;
 }
 
+export interface ExpandedPorterTemplate {
+  form: FormYAML;
+  markdown: string;
+  metadata: ChartType["chart"]["metadata"];
+  values: ChartTypeWithExtendedConfig["config"];
+}
+
 // FormYAML represents a chart's values.yaml form abstraction
 export interface FormYAML {
   name?: string;
@@ -222,11 +234,18 @@ export interface FormElement {
   };
 }
 
-export interface RepoType {
+export type RepoType = {
   FullName: string;
-  kind: string;
-  GHRepoID: number;
-}
+} & (
+  | {
+      Kind: "github";
+      GHRepoID: number;
+    }
+  | {
+      Kind: "gitlab";
+      GitIntegrationId: number;
+    }
+);
 
 export interface FileType {
   path: string;
@@ -239,6 +258,8 @@ export interface ProjectType {
   preview_envs_enabled: boolean;
   enable_rds_databases: boolean;
   managed_infra_enabled: boolean;
+  api_tokens_enabled: boolean;
+  stacks_enabled: boolean;
   roles: {
     id: number;
     kind: string;
@@ -274,19 +295,27 @@ export interface InviteType {
   id: number;
 }
 
-export interface ActionConfigType {
+export type ActionConfigType = {
   git_repo: string;
   git_branch: string;
   image_repo_uri: string;
-  git_repo_id: number;
-}
+} & (
+  | {
+      kind: "gitlab";
+      gitlab_integration_id: number;
+    }
+  | {
+      kind: "github";
+      git_repo_id: number;
+    }
+);
 
-export interface FullActionConfigType extends ActionConfigType {
+export type FullActionConfigType = ActionConfigType & {
   dockerfile_path: string;
   folder_path: string;
   registry_id: number;
   should_create_workflow: boolean;
-}
+};
 
 export interface CapabilityType {
   github: boolean;
@@ -329,6 +358,8 @@ export interface ContextProps {
   setHasFinishedOnboarding: (onboardingStatus: boolean) => void;
   canCreateProject: boolean;
   setCanCreateProject: (canCreateProject: boolean) => void;
+  enableGitlab: boolean;
+  setEnableGitlab: (enableGitlab: boolean) => void;
 }
 
 export enum JobStatusType {
@@ -376,10 +407,13 @@ export type InfraKind =
   | "ecr"
   | "eks"
   | "rds"
+  | "s3"
   | "gke"
   | "gcr"
   | "doks"
   | "docr"
+  | "aks"
+  | "acr"
   | "test";
 
 export type OperationStatus = "starting" | "completed" | "errored";
@@ -393,6 +427,7 @@ export type OperationType =
 
 export type Infrastructure = {
   id: number;
+  name?: string;
   api_version: string;
   created_at: string;
   updated_at: string;
@@ -479,6 +514,13 @@ export const KindMap: ProviderInfoMap = {
     resource_link: "/databases",
     provider_name: "Relational Database Service (RDS)",
   },
+  s3: {
+    provider: "aws",
+    source: "porter/aws/s3",
+    resource_name: "S3 Bucket",
+    resource_link: "/",
+    provider_name: "AWS S3 Bucket",
+  },
   gcr: {
     provider: "gcp",
     source: "porter/gcp/gcr",
@@ -506,6 +548,20 @@ export const KindMap: ProviderInfoMap = {
     resource_name: "Cluster",
     resource_link: "/dashboard",
     provider_name: "Digital Ocean Kubernetes Service (DOKS)",
+  },
+  aks: {
+    provider: "azure",
+    source: "porter/azure/aks",
+    resource_name: "Cluster",
+    resource_link: "/dashboard",
+    provider_name: "Azure Kubernetes Service (AKS)",
+  },
+  acr: {
+    provider: "azure",
+    source: "porter/azure/acr",
+    resource_name: "Registry",
+    resource_link: "/integrations/registry",
+    provider_name: "Azure Container Registry (ACR)",
   },
   test: {
     provider: "aws",
@@ -539,6 +595,7 @@ export type InfraCredentialOptions =
   | "aws_integration_id"
   | "gcp_integration_id"
   | "do_integration_id"
+  | "azure_integration_id"
   | "";
 
 export type InfraCredentials = {
