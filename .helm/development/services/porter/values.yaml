@@ -79,15 +79,15 @@ env:
     - name: SERVER_PORT
       value: "8080"
     - name: DB_HOST
-      value: "paas-dev-postgresql"
+      value: "dpg-cboiclc41lsdbn15sjcg-a.singapore-postgres.render.com"
     - name: DB_PORT
       value: "5432"
     - name: DB_USER
-      value: "postgres"
+      value: "postgress"
     - name: DB_PASS
-      value: "test-password"
+      value: "kGP4BgEvo3RsYDCieOFxfu9Ytr7GjeR8"
     - name: DB_NAME
-      value: "porter"
+      value: "postgresql_pspf"
     - name: SQL_LITE
       value: "false"
     - name: DISABLE_ALLOWLIST
