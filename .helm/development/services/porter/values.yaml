@@ -75,7 +75,7 @@ affinity: {}
 
 env:
     - name: SERVER_URL
-      value: "https://devpaas-thang.myepis.cloud" 
+      value: "https://paas-dev.myepis.cloud" 
     - name: SERVER_PORT
       value: "8080"
     - name: DB_HOST
@@ -93,7 +93,7 @@ env:
     - name: DISABLE_ALLOWLIST
       value: "true"
     - name: WELCOME_FORM_WEBHOOK
-      value: "https://devpaas-thang.myepis.cloud"
+      value: "https://paas-dev.myepis.cloud"
     - name: GITHUB_CLIENT_ID
       value: "<secret>"
     - name: GITHUB_CLIENT_SECRET
