@@ -2003,6 +2003,22 @@ const createStack = baseApi<
     `/api/v1/projects/${project_id}/clusters/${cluster_id}/namespaces/${namespace}/stacks`
 );
 
+const updateStack = baseApi<
+  {
+    name: string;
+  },
+  {
+    project_id: number;
+    cluster_id: number;
+    namespace: string;
+    stack_id: string;
+  }
+>(
+  "PATCH",
+  ({ project_id, cluster_id, namespace, stack_id }) =>
+    `/api/v1/projects/${project_id}/clusters/${cluster_id}/namespaces/${namespace}/stacks/${stack_id}`
+);
+
 const listStacks = baseApi<
   {},
   { project_id: number; cluster_id: number; namespace: string }
@@ -2085,6 +2101,64 @@ const updateStackSourceConfig = baseApi<
   "PUT",
   ({ project_id, cluster_id, namespace, stack_id }) =>
     `/api/v1/projects/${project_id}/clusters/${cluster_id}/namespaces/${namespace}/stacks/${stack_id}/source`
+);
+
+const addStackAppResource = baseApi<
+  CreateStackBody["app_resources"][0],
+  {
+    project_id: number;
+    cluster_id: number;
+    namespace: string;
+    stack_id: string;
+  }
+>(
+  "PATCH",
+  ({ project_id, cluster_id, namespace, stack_id }) =>
+    `/api/v1/projects/${project_id}/clusters/${cluster_id}/namespaces/${namespace}/stacks/${stack_id}/add_application`
+);
+
+const removeStackAppResource = baseApi<
+  {},
+  {
+    project_id: number;
+    cluster_id: number;
+    namespace: string;
+    stack_id: string;
+    app_resource_name: string;
+  }
+>(
+  "DELETE",
+  ({ project_id, cluster_id, namespace, stack_id, app_resource_name }) =>
+    `/api/v1/projects/${project_id}/clusters/${cluster_id}/namespaces/${namespace}/stacks/${stack_id}/remove_application/${app_resource_name}`
+);
+
+const addStackEnvGroup = baseApi<
+  CreateStackBody["env_groups"][0],
+  {
+    project_id: number;
+    cluster_id: number;
+    namespace: string;
+    stack_id: string;
+  }
+>(
+  "PATCH",
+  ({ project_id, cluster_id, namespace, stack_id }) =>
+    `/api/v1/projects/${project_id}/clusters/${cluster_id}/namespaces/${namespace}/stacks/${stack_id}/add_env_group`
+);
+
+const removeStackEnvGroup = baseApi<
+  {},
+  {
+    project_id: number;
+    cluster_id: number;
+    namespace: string;
+    stack_id: string;
+    env_group_name: string;
+  }
+>(
+  "DELETE",
+  ({ project_id, cluster_id, namespace, stack_id, env_group_name }) =>
+    `/api/v1/projects/${project_id}/clusters/${cluster_id}/namespaces/${namespace}/stacks/${stack_id}/remove_env_group/${env_group_name}`
 );
 
 const getGithubStatus = baseApi<{}, {}>("GET", ({}) => `/api/status/github`);
@@ -2281,9 +2355,14 @@ export default {
   getStack,
   getStackRevision,
   createStack,
+  updateStack,
   rollbackStack,
   deleteStack,
   updateStackSourceConfig,
+  addStackAppResource,
+  removeStackAppResource,
+  addStackEnvGroup,
+  removeStackEnvGroup,
 
   // STATUS
   getGithubStatus,

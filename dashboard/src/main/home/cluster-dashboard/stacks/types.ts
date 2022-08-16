@@ -9,6 +9,7 @@ export type CreateStackBody = {
     values: unknown;
   }[];
   source_configs: {
+    display_name: string;
     name: string;
     image_repo_uri: string;
     image_tag: string;
@@ -55,24 +56,32 @@ export type FullStackRevision = StackRevision & {
   env_groups: EnvGroup[];
 };
 
+type StackRevisionReason =
+  | "DeployError"
+  | "SaveError"
+  | "RollbackError"
+  | "EnvGroupUpgrade"
+  | "ApplicationUpgrade"
+  | "SourceConfigUpgrade"
+  | "Rollback"
+  | "CreationSuccess"
+  | "AddEnvGroupSuccess"
+  | "AddAppSuccess"
+  | "RemoveEnvGroupSuccess"
+  | "RemoveAppSuccess";
+
 export type StackRevision = {
   id: number;
   created_at: string;
   status: "deploying" | "deployed" | "failed"; // type with enum
   stack_id: string;
-  reason:
-    | "DeployError"
-    | "SaveError"
-    | "RollbackError"
-    | "EnvGroupUpgrade"
-    | "ApplicationUpgrade"
-    | "SourceConfigUpgrade"
-    | "Rollback";
+  reason: StackRevisionReason;
   message: string;
 };
 
 export type SourceConfig = {
   id: string;
+  display_name: string;
   name: string;
   created_at: string;
   updated_at: string;

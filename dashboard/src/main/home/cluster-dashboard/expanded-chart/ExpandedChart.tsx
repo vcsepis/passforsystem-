@@ -312,6 +312,9 @@ const ExpandedChart: React.FC<Props> = (props) => {
         "<token>",
         {
           values: valuesYaml,
+          // this is triggered from the Porter form, so we set the latest revision to ensure that the release is
+          // up to date
+          latest_revision: currentChart.version,
         },
         {
           id: currentProject.id,
@@ -369,6 +372,7 @@ const ExpandedChart: React.FC<Props> = (props) => {
           {
             values: valuesYaml,
             version: version,
+            latest_revision: currentChart.version,
           },
           {
             id: currentProject.id,
@@ -644,16 +648,31 @@ const ExpandedChart: React.FC<Props> = (props) => {
     }
 
     try {
-      await api.uninstallTemplate(
-        "<token>",
-        {},
-        {
-          namespace: currentChart.namespace,
-          name: currentChart.name,
-          id: currentProject.id,
-          cluster_id: currentCluster.id,
-        }
-      );
+      if (currentChart.stack_id) {
+        await api.removeStackAppResource(
+          "<token>",
+          {},
+          {
+            namespace: currentChart.namespace,
+            app_resource_name: currentChart.name,
+            project_id: currentProject.id,
+            cluster_id: currentCluster.id,
+            stack_id: currentChart.stack_id,
+          }
+        );
+      } else {
+        await api.uninstallTemplate(
+          "<token>",
+          {},
+          {
+            namespace: currentChart.namespace,
+            name: currentChart.name,
+            id: currentProject.id,
+            cluster_id: currentCluster.id,
+          }
+        );
+      }
+
       props.closeChart();
     } catch (error) {
       console.log(error);
@@ -850,6 +869,9 @@ const ExpandedChart: React.FC<Props> = (props) => {
                               isStack && !isPreview
                                 ? stackEnvGroups
                                 : undefined,
+                          },
+                          "url-link": {
+                            chart: currentChart,
                           },
                         }}
                       />

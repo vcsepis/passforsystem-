@@ -20,7 +20,7 @@ func GCR(
 ) (uint, error) {
 	// if project ID is 0, ask the user to set the project ID or create a project
 	if projectID == 0 {
-		return 0, fmt.Errorf("no project set, please run porter project set [id]")
+		return 0, fmt.Errorf("no project set, please run porter config set-project")
 	}
 
 	keyFileLocation, err := utils.PromptPlaintext(fmt.Sprintf(`Please provide the full path to a service account key file.
@@ -39,7 +39,7 @@ Key file location: `))
 			return 0, err
 		}
 
-		// create the aws integration
+		// create the gcp integration
 		integration, err := client.CreateGCPIntegration(
 			context.Background(),
 			projectID,
