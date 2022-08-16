@@ -16,6 +16,8 @@ staging.sh
 bin
 openapi.yaml
 
+docker/*.env
+
 # Local docs directories
 /docs/.obsidian
 
