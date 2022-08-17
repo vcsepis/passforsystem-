@@ -13,6 +13,6 @@ COPY . ./
 RUN chmod +x /porter/docker/bin/*
 
 # for live reloading of go container
-RUN go get github.com/cosmtrek/air
+RUN go install github.com/cosmtrek/air
 
 CMD air -c .air.toml
