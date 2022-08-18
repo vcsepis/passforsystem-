@@ -2,9 +2,11 @@ package release
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/porter-dev/porter/api/server/authz"
 	"github.com/porter-dev/porter/api/server/handlers"
@@ -18,11 +20,14 @@ import (
 	"github.com/porter-dev/porter/internal/helm"
 	"github.com/porter-dev/porter/internal/helm/loader"
 	"github.com/porter-dev/porter/internal/integrations/ci/actions"
+	"github.com/porter-dev/porter/internal/integrations/ci/gitlab"
 	"github.com/porter-dev/porter/internal/models"
 	"github.com/porter-dev/porter/internal/oauth"
 	"github.com/porter-dev/porter/internal/registry"
+	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/release"
+	v1 "k8s.io/api/core/v1"
 )
 
 type CreateReleaseHandler struct {
@@ -110,28 +115,52 @@ func (c *CreateReleaseHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	release, err := createReleaseFromHelmRelease(c.Config(), cluster.ProjectID, cluster.ID, helmRelease)
+	k8sAgent, err := c.GetAgent(r, cluster, "")
 
 	if err != nil {
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
 		return
 	}
 
-	if request.GithubActionConfig != nil {
-		_, _, err := createGitAction(
-			c.Config(),
-			user.ID,
-			cluster.ProjectID,
-			cluster.ID,
-			request.GithubActionConfig,
-			request.Name,
-			namespace,
-			release,
-		)
+	configMaps := make([]*v1.ConfigMap, 0)
 
-		if err != nil {
-			c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
-			return
+	if request.SyncedEnvGroups != nil && len(request.SyncedEnvGroups) > 0 {
+		for _, envGroupName := range request.SyncedEnvGroups {
+			// read the attached configmap
+			cm, _, err := k8sAgent.GetLatestVersionedConfigMap(envGroupName, namespace)
+
+			if err != nil {
+				c.HandleAPIError(w, r, apierrors.NewErrPassThroughToClient(fmt.Errorf("Couldn't find the env group"), http.StatusNotFound))
+				return
+			}
+
+			configMaps = append(configMaps, cm)
+		}
+	}
+
+	release, err := CreateAppReleaseFromHelmRelease(c.Config(), cluster.ProjectID, cluster.ID, 0, helmRelease)
+
+	if err != nil {
+		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+		return
+	}
+
+	if len(configMaps) > 0 {
+		for _, cm := range configMaps {
+
+			_, err = k8sAgent.AddApplicationToVersionedConfigMap(cm, release.Name)
+
+			if err != nil {
+				c.HandleAPIErrorNoWrite(w, r, apierrors.NewErrInternal(fmt.Errorf("Couldn't add %s to the config map %s", release.Name, cm.Name)))
+			}
+		}
+	}
+
+	if request.Tags != nil {
+		tags, err := c.Repo().Tag().LinkTagsToRelease(request.Tags, release)
+
+		if err == nil {
+			release.Tags = append(release.Tags, tags...)
 		}
 	}
 
@@ -142,6 +171,34 @@ func (c *CreateReleaseHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
 		return
+	}
+
+	if request.GitActionConfig != nil {
+		_, _, err := createGitAction(
+			c.Config(),
+			user.ID,
+			cluster.ProjectID,
+			cluster.ID,
+			request.GitActionConfig,
+			request.Name,
+			namespace,
+			release,
+		)
+
+		if err != nil {
+			unwrappedErr := errors.Unwrap(err)
+
+			if unwrappedErr != nil {
+				if errors.Is(unwrappedErr, actions.ErrProtectedBranch) {
+					c.HandleAPIError(w, r, apierrors.NewErrPassThroughToClient(err, http.StatusConflict))
+				} else if errors.Is(unwrappedErr, actions.ErrCreatePRForProtectedBranch) {
+					c.HandleAPIError(w, r, apierrors.NewErrPassThroughToClient(err, http.StatusPreconditionFailed))
+				}
+			} else {
+				c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+				return
+			}
+		}
 	}
 
 	c.Config().AnalyticsClient.Track(analytics.ApplicationLaunchSuccessTrack(
@@ -157,11 +214,13 @@ func (c *CreateReleaseHandler) ServeHTTP(w http.ResponseWriter, r *http.Request)
 			FlowID: operationID,
 		},
 	))
+
+	w.WriteHeader(http.StatusCreated)
 }
 
-func createReleaseFromHelmRelease(
+func CreateAppReleaseFromHelmRelease(
 	config *config.Config,
-	projectID, clusterID uint,
+	projectID, clusterID, stackResourceID uint,
 	helmRelease *release.Release,
 ) (*models.Release, error) {
 	token, err := encryption.GenerateRandomBytes(16)
@@ -185,12 +244,29 @@ func createReleaseFromHelmRelease(
 	}
 
 	release := &models.Release{
-		ClusterID:    clusterID,
-		ProjectID:    projectID,
-		Namespace:    helmRelease.Namespace,
-		Name:         helmRelease.Name,
-		WebhookToken: token,
-		ImageRepoURI: repoStr,
+		ClusterID:       clusterID,
+		ProjectID:       projectID,
+		Namespace:       helmRelease.Namespace,
+		Name:            helmRelease.Name,
+		WebhookToken:    token,
+		ImageRepoURI:    repoStr,
+		StackResourceID: stackResourceID,
+	}
+
+	return config.Repo.Release().CreateRelease(release)
+}
+
+func CreateAddonReleaseFromHelmRelease(
+	config *config.Config,
+	projectID, clusterID, stackResourceID uint,
+	helmRelease *release.Release,
+) (*models.Release, error) {
+	release := &models.Release{
+		ClusterID:       clusterID,
+		ProjectID:       projectID,
+		Namespace:       helmRelease.Namespace,
+		Name:            helmRelease.Name,
+		StackResourceID: stackResourceID,
 	}
 
 	return config.Repo.Release().CreateRelease(release)
@@ -226,75 +302,101 @@ func createGitAction(
 		}
 	}
 
+	isDryRun := release == nil
+
 	repoSplit := strings.Split(request.GitRepo, "/")
 
 	if len(repoSplit) != 2 {
 		return nil, nil, fmt.Errorf("invalid formatting of repo name")
 	}
 
-	// generate porter jwt token
-	jwt, err := token.GetTokenForAPI(userID, projectID)
+	encoded := ""
+	var err error
 
-	if err != nil {
-		return nil, nil, err
+	// if this isn't a dry run, generate the token
+	if !isDryRun {
+		encoded, err = getToken(config, userID, projectID, clusterID, request)
+
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 
-	encoded, err := jwt.EncodeToken(config.TokenConf)
+	var workflowYAML []byte
+	var gitErr error
 
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// create the commit in the git repo
-	gaRunner := &actions.GithubActions{
-		InstanceName:           config.ServerConf.InstanceName,
-		ServerURL:              config.ServerConf.ServerURL,
-		GithubOAuthIntegration: nil,
-		GithubAppID:            config.GithubAppConf.AppID,
-		GithubAppSecretPath:    config.GithubAppConf.SecretPath,
-		GithubInstallationID:   request.GitRepoID,
-		GitRepoName:            repoSplit[1],
-		GitRepoOwner:           repoSplit[0],
-		Repo:                   config.Repo,
-		ProjectID:              projectID,
-		ClusterID:              clusterID,
-		ReleaseName:            name,
-		ReleaseNamespace:       namespace,
-		GitBranch:              request.GitBranch,
-		DockerFilePath:         request.DockerfilePath,
-		FolderPath:             request.FolderPath,
-		ImageRepoURL:           request.ImageRepoURI,
-		PorterToken:            encoded,
-		Version:                "v0.1.0",
-		ShouldCreateWorkflow:   request.ShouldCreateWorkflow,
-		DryRun:                 release == nil,
-	}
-
-	// Save the github err for after creating the git action config. However, we
-	// need to call Setup() in order to get the workflow file before writing the
-	// action config, in the case of a dry run, since the dry run does not create
-	// a git action config.
-	workflowYAML, githubErr := gaRunner.Setup()
-
-	if gaRunner.DryRun {
-		if githubErr != nil {
-			return nil, nil, githubErr
+	if request.GitlabIntegrationID != 0 {
+		giRunner := &gitlab.GitlabCI{
+			ServerURL:        config.ServerConf.ServerURL,
+			GitRepoOwner:     repoSplit[0],
+			GitRepoName:      repoSplit[1],
+			GitBranch:        request.GitBranch,
+			Repo:             config.Repo,
+			ProjectID:        projectID,
+			ClusterID:        clusterID,
+			UserID:           userID,
+			IntegrationID:    request.GitlabIntegrationID,
+			PorterConf:       config,
+			ReleaseName:      name,
+			ReleaseNamespace: namespace,
+			FolderPath:       request.FolderPath,
+			PorterToken:      encoded,
 		}
 
-		return nil, workflowYAML, nil
+		gitErr = giRunner.Setup()
+	} else {
+		// create the commit in the git repo
+		gaRunner := &actions.GithubActions{
+			InstanceName:           config.ServerConf.InstanceName,
+			ServerURL:              config.ServerConf.ServerURL,
+			GithubOAuthIntegration: nil,
+			GithubAppID:            config.GithubAppConf.AppID,
+			GithubAppSecretPath:    config.GithubAppConf.SecretPath,
+			GithubInstallationID:   request.GitRepoID,
+			GitRepoName:            repoSplit[1],
+			GitRepoOwner:           repoSplit[0],
+			Repo:                   config.Repo,
+			ProjectID:              projectID,
+			ClusterID:              clusterID,
+			ReleaseName:            name,
+			ReleaseNamespace:       namespace,
+			GitBranch:              request.GitBranch,
+			DockerFilePath:         request.DockerfilePath,
+			FolderPath:             request.FolderPath,
+			ImageRepoURL:           request.ImageRepoURI,
+			PorterToken:            encoded,
+			Version:                "v0.1.0",
+			ShouldCreateWorkflow:   request.ShouldCreateWorkflow,
+			DryRun:                 release == nil,
+		}
+
+		// Save the github err for after creating the git action config. However, we
+		// need to call Setup() in order to get the workflow file before writing the
+		// action config, in the case of a dry run, since the dry run does not create
+		// a git action config.
+		workflowYAML, gitErr = gaRunner.Setup()
+
+		if gaRunner.DryRun {
+			if gitErr != nil {
+				return nil, nil, gitErr
+			}
+
+			return nil, workflowYAML, nil
+		}
 	}
 
 	// handle write to the database
 	ga, err := config.Repo.GitActionConfig().CreateGitActionConfig(&models.GitActionConfig{
-		ReleaseID:      release.ID,
-		GitRepo:        request.GitRepo,
-		GitBranch:      request.GitBranch,
-		ImageRepoURI:   request.ImageRepoURI,
-		GitRepoID:      request.GitRepoID,
-		DockerfilePath: request.DockerfilePath,
-		FolderPath:     request.FolderPath,
-		IsInstallation: true,
-		Version:        "v0.1.0",
+		ReleaseID:           release.ID,
+		GitRepo:             request.GitRepo,
+		GitBranch:           request.GitBranch,
+		ImageRepoURI:        request.ImageRepoURI,
+		GitRepoID:           request.GitRepoID,
+		GitlabIntegrationID: request.GitlabIntegrationID,
+		DockerfilePath:      request.DockerfilePath,
+		FolderPath:          request.FolderPath,
+		IsInstallation:      true,
+		Version:             "v0.1.0",
 	})
 
 	if err != nil {
@@ -310,11 +412,110 @@ func createGitAction(
 		return nil, nil, err
 	}
 
-	if githubErr != nil {
-		return nil, nil, githubErr
+	return ga.ToGitActionConfigType(), workflowYAML, gitErr
+}
+
+func getToken(
+	config *config.Config,
+	userID, projectID, clusterID uint,
+	request *types.CreateGitActionConfigRequest,
+) (string, error) {
+	// create a policy for the token
+	policy := []*types.PolicyDocument{
+		{
+			Scope: types.ProjectScope,
+			Verbs: types.ReadWriteVerbGroup(),
+			Children: map[types.PermissionScope]*types.PolicyDocument{
+				types.ClusterScope: {
+					Scope: types.ClusterScope,
+					Verbs: types.ReadWriteVerbGroup(),
+				},
+				types.RegistryScope: {
+					Scope: types.RegistryScope,
+					Verbs: types.ReadVerbGroup(),
+				},
+				types.HelmRepoScope: {
+					Scope: types.HelmRepoScope,
+					Verbs: types.ReadVerbGroup(),
+				},
+			},
+		},
 	}
 
-	return ga.ToGitActionConfigType(), workflowYAML, nil
+	uid, err := encryption.GenerateRandomBytes(16)
+
+	if err != nil {
+		return "", err
+	}
+
+	policyBytes, err := json.Marshal(policy)
+
+	if err != nil {
+		return "", err
+	}
+
+	policyModel := &models.Policy{
+		ProjectID:       projectID,
+		UniqueID:        uid,
+		CreatedByUserID: userID,
+		Name:            strings.ToLower(fmt.Sprintf("repo-%s-token-policy", request.GitRepo)),
+		PolicyBytes:     policyBytes,
+	}
+
+	policyModel, err = config.Repo.Policy().CreatePolicy(policyModel)
+
+	if err != nil {
+		return "", err
+	}
+
+	// create the token in the database
+	tokenUID, err := encryption.GenerateRandomBytes(16)
+
+	if err != nil {
+		return "", err
+	}
+
+	secretKey, err := encryption.GenerateRandomBytes(16)
+
+	if err != nil {
+		return "", err
+	}
+
+	// hash the secret key for storage in the db
+	hashedToken, err := bcrypt.GenerateFromPassword([]byte(secretKey), 8)
+
+	if err != nil {
+		return "", err
+	}
+
+	expiresAt := time.Now().Add(time.Hour * 24 * 365)
+
+	apiToken := &models.APIToken{
+		UniqueID:        tokenUID,
+		ProjectID:       projectID,
+		CreatedByUserID: userID,
+		Expiry:          &expiresAt,
+		Revoked:         false,
+		PolicyUID:       policyModel.UniqueID,
+		PolicyName:      policyModel.Name,
+		Name:            strings.ToLower(fmt.Sprintf("repo-%s-token", request.GitRepo)),
+		SecretKey:       hashedToken,
+	}
+
+	apiToken, err = config.Repo.APIToken().CreateAPIToken(apiToken)
+
+	if err != nil {
+		return "", err
+	}
+
+	// generate porter jwt token
+	jwt, err := token.GetStoredTokenForAPI(userID, projectID, apiToken.UniqueID, secretKey)
+
+	if err != nil {
+		return "", err
+	}
+
+	return jwt.EncodeToken(config.TokenConf)
 }
 
 func createBuildConfig(
@@ -355,7 +556,7 @@ type containerEnvConfig struct {
 	} `yaml:"container"`
 }
 
-func getGARunner(
+func GetGARunner(
 	config *config.Config,
 	userID, projectID, clusterID uint,
 	ga *models.GitActionConfig,

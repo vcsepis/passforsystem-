@@ -2,20 +2,24 @@ package environment
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/google/go-github/v41/github"
 	"github.com/porter-dev/porter/api/server/authz"
 	"github.com/porter-dev/porter/api/server/handlers"
-	"github.com/porter-dev/porter/api/server/handlers/gitinstallation"
 	"github.com/porter-dev/porter/api/server/shared"
 	"github.com/porter-dev/porter/api/server/shared/apierrors"
+	"github.com/porter-dev/porter/api/server/shared/commonutils"
 	"github.com/porter-dev/porter/api/server/shared/config"
 	"github.com/porter-dev/porter/api/types"
 	"github.com/porter-dev/porter/internal/models"
 	"github.com/porter-dev/porter/internal/models/integrations"
+	"gorm.io/gorm"
 )
+
+var errGithubAPI = errors.New("error communicating with the github API")
 
 type CreateDeploymentHandler struct {
 	handlers.PorterHandlerReadWriter
@@ -38,7 +42,7 @@ func (c *CreateDeploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	project, _ := r.Context().Value(types.ProjectScope).(*models.Project)
 	cluster, _ := r.Context().Value(types.ClusterScope).(*models.Cluster)
 
-	owner, name, ok := gitinstallation.GetOwnerAndNameParams(c, w, r)
+	owner, name, ok := commonutils.GetOwnerAndNameParams(c, w, r)
 
 	if !ok {
 		return
@@ -54,6 +58,13 @@ func (c *CreateDeploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	env, err := c.Repo().Environment().ReadEnvironment(project.ID, cluster.ID, uint(ga.InstallationID), owner, name)
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.HandleAPIError(w, r, apierrors.NewErrNotFound(
+				fmt.Errorf("error creating deployment: no environment found")),
+			)
+			return
+		}
+
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
 		return
 	}
@@ -66,10 +77,25 @@ func (c *CreateDeploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	ghDeployment, err := createDeployment(client, env, request.PRBranchFrom, request.ActionID)
+	// add a check for Github PR status
+	prClosed, err := isGithubPRClosed(client, owner, name, int(request.PullRequestID))
 
 	if err != nil {
-		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+		c.HandleAPIError(w, r, apierrors.NewErrPassThroughToClient(err, http.StatusConflict))
+		return
+	}
+
+	if prClosed {
+		c.HandleAPIError(w, r, apierrors.NewErrPassThroughToClient(
+			fmt.Errorf("cannot create deployment for closed github PR"), http.StatusConflict,
+		))
+		return
+	}
+
+	ghDeployment, err := createGithubDeployment(client, env, request.PRBranchFrom, request.ActionID)
+
+	if err != nil {
+		c.HandleAPIError(w, r, apierrors.NewErrPassThroughToClient(err, http.StatusConflict))
 		return
 	}
 
@@ -89,6 +115,20 @@ func (c *CreateDeploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	})
 
 	if err != nil {
+		// try to delete the GitHub deployment
+		_, err = client.Repositories.DeleteDeployment(
+			context.Background(),
+			env.GitRepoOwner,
+			env.GitRepoName,
+			ghDeployment.GetID(),
+		)
+
+		if err != nil {
+			c.HandleAPIError(w, r, apierrors.NewErrPassThroughToClient(fmt.Errorf("%v: %w", errGithubAPI, err),
+				http.StatusConflict))
+			return
+		}
+
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
 		return
 	}
@@ -111,7 +151,7 @@ func (c *CreateDeploymentHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	c.WriteResult(w, r, depl.ToDeploymentType())
 }
 
-func createDeployment(
+func createGithubDeployment(
 	client *github.Client,
 	env *models.Environment,
 	branchFrom string,
@@ -119,46 +159,39 @@ func createDeployment(
 ) (*github.Deployment, error) {
 	requiredContexts := []string{}
 
-	deploymentRequest := github.DeploymentRequest{
-		Ref:              github.String(branchFrom),
-		Environment:      github.String(env.Name),
-		AutoMerge:        github.Bool(false),
-		RequiredContexts: &requiredContexts,
-	}
-
 	deployment, _, err := client.Repositories.CreateDeployment(
 		context.Background(),
 		env.GitRepoOwner,
 		env.GitRepoName,
-		&deploymentRequest,
+		&github.DeploymentRequest{
+			Ref:              github.String(branchFrom),
+			Environment:      github.String(env.Name),
+			AutoMerge:        github.Bool(false),
+			RequiredContexts: &requiredContexts,
+		},
 	)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%v: %w", errGithubAPI, err)
 	}
 
 	depID := deployment.GetID()
 
 	// Create Deployment Status to indicate it's in progress
-
-	state := "in_progress"
-	log_url := fmt.Sprintf("https://github.com/%s/%s/runs/%d", env.GitRepoOwner, env.GitRepoName, actionID)
-
-	deploymentStatusRequest := github.DeploymentStatusRequest{
-		State:  &state,
-		LogURL: &log_url, // link to actions tab
-	}
-
 	_, _, err = client.Repositories.CreateDeploymentStatus(
 		context.Background(),
 		env.GitRepoOwner,
 		env.GitRepoName,
 		depID,
-		&deploymentStatusRequest,
+		&github.DeploymentStatusRequest{
+			State: github.String("in_progress"),
+			LogURL: github.String(fmt.Sprintf("https://github.com/%s/%s/actions/runs/%d",
+				env.GitRepoOwner, env.GitRepoName, actionID)), // link to actions tab
+		},
 	)
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%v: %w", errGithubAPI, err)
 	}
 
 	return deployment, nil

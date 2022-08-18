@@ -54,21 +54,44 @@ type SimpleIngress struct {
 // GetIngressesWithNGINXAnnotation gets an array of names for all ingresses controlled by
 // NGINX
 func GetIngressesWithNGINXAnnotation(clientset kubernetes.Interface) ([]SimpleIngress, error) {
-	ingressList, err := clientset.NetworkingV1beta1().Ingresses("").List(context.TODO(), metav1.ListOptions{})
+	res := make([]SimpleIngress, 0)
+	foundMap := make(map[string]bool)
 
-	if err != nil {
-		return nil, err
+	v1beta1IngressList, v1beta1Err := clientset.NetworkingV1beta1().Ingresses("").List(context.TODO(), metav1.ListOptions{})
+	v1IngressList, v1Err := clientset.NetworkingV1().Ingresses("").List(context.TODO(), metav1.ListOptions{})
+
+	if v1beta1Err != nil && v1Err != nil {
+		return nil, fmt.Errorf("List ingresses error: %s, %s", v1beta1Err.Error(), v1Err.Error())
 	}
 
-	res := make([]SimpleIngress, 0)
+	if v1beta1Err == nil && len(v1beta1IngressList.Items) > 0 {
+		for _, ingress := range v1beta1IngressList.Items {
+			ingressAnn, found := ingress.ObjectMeta.Annotations["kubernetes.io/ingress.class"]
+			uid := fmt.Sprintf("%s/%s", ingress.ObjectMeta.Namespace, ingress.ObjectMeta.Name)
 
-	for _, ingress := range ingressList.Items {
-		if ingressAnn, found := ingress.ObjectMeta.Annotations["kubernetes.io/ingress.class"]; found {
-			if ingressAnn == "nginx" {
+			if _, exists := foundMap[uid]; !exists && ((found && ingressAnn == "nginx") || *ingress.Spec.IngressClassName == "nginx") {
 				res = append(res, SimpleIngress{
 					Name:      ingress.ObjectMeta.Name,
 					Namespace: ingress.ObjectMeta.Namespace,
 				})
+
+				foundMap[uid] = true
+			}
+		}
+	}
+
+	if v1Err == nil && len(v1IngressList.Items) > 0 {
+		for _, ingress := range v1IngressList.Items {
+			ingressAnn, found := ingress.ObjectMeta.Annotations["kubernetes.io/ingress.class"]
+			uid := fmt.Sprintf("%s/%s", ingress.ObjectMeta.Namespace, ingress.ObjectMeta.Name)
+
+			if _, exists := foundMap[uid]; !exists && ((found && ingressAnn == "nginx") || *ingress.Spec.IngressClassName == "nginx") {
+				res = append(res, SimpleIngress{
+					Name:      ingress.ObjectMeta.Name,
+					Namespace: ingress.ObjectMeta.Namespace,
+				})
+
+				foundMap[uid] = true
 			}
 		}
 	}
@@ -122,15 +145,15 @@ func QueryPrometheus(
 		netPodSelector := fmt.Sprintf(`namespace="%s",pod=~"%s",container="POD"`, opts.Namespace, selectionRegex)
 		query = fmt.Sprintf("rate(container_network_receive_bytes_total{%s}[5m])", netPodSelector)
 	} else if opts.Metric == "nginx:errors" {
-		num := fmt.Sprintf(`sum(rate(nginx_ingress_controller_requests{status=~"5.*",namespace="%s",ingress=~"%s"}[5m]) OR on() vector(0))`, opts.Namespace, selectionRegex)
-		denom := fmt.Sprintf(`sum(rate(nginx_ingress_controller_requests{namespace="%s",ingress=~"%s"}[5m]) > 0)`, opts.Namespace, selectionRegex)
+		num := fmt.Sprintf(`sum(rate(nginx_ingress_controller_requests{status=~"5.*",exported_namespace="%s",ingress=~"%s"}[5m]) OR on() vector(0))`, opts.Namespace, selectionRegex)
+		denom := fmt.Sprintf(`sum(rate(nginx_ingress_controller_requests{exported_namespace="%s",ingress=~"%s"}[5m]) > 0)`, opts.Namespace, selectionRegex)
 		query = fmt.Sprintf(`%s / %s * 100 OR on() vector(0)`, num, denom)
 	} else if opts.Metric == "nginx:latency" {
-		num := fmt.Sprintf(`sum(rate(nginx_ingress_controller_request_duration_seconds_sum{namespace=~"%s",ingress=~"%s"}[5m]) OR on() vector(0))`, opts.Namespace, selectionRegex)
-		denom := fmt.Sprintf(`sum(rate(nginx_ingress_controller_request_duration_seconds_count{namespace=~"%s",ingress=~"%s"}[5m]))`, opts.Namespace, selectionRegex)
+		num := fmt.Sprintf(`sum(rate(nginx_ingress_controller_request_duration_seconds_sum{exported_namespace=~"%s",ingress=~"%s"}[5m]) OR on() vector(0))`, opts.Namespace, selectionRegex)
+		denom := fmt.Sprintf(`sum(rate(nginx_ingress_controller_request_duration_seconds_count{exported_namespace=~"%s",ingress=~"%s"}[5m]))`, opts.Namespace, selectionRegex)
 		query = fmt.Sprintf(`%s / %s OR on() vector(0)`, num, denom)
 	} else if opts.Metric == "nginx:latency-histogram" {
-		query = fmt.Sprintf(`histogram_quantile(%f, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{status!="404",status!="500",namespace=~"%s",ingress=~"%s"}[5m])) by (le, ingress))`, opts.Percentile, opts.Namespace, selectionRegex)
+		query = fmt.Sprintf(`histogram_quantile(%f, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket{status!="404",status!="500",exported_namespace=~"%s",ingress=~"%s"}[5m])) by (le, ingress))`, opts.Percentile, opts.Namespace, selectionRegex)
 	} else if opts.Metric == "cpu_hpa_threshold" {
 		// get the name of the kube hpa metric
 		metricName, hpaMetricName := getKubeHPAMetricName(clientset, service, opts, "spec_target_metric")
@@ -278,7 +301,7 @@ func getSelectionRegex(kind, name string) (string, error) {
 
 	switch strings.ToLower(kind) {
 	case "deployment":
-		suffix = "[a-z0-9]+-[a-z0-9]+"
+		suffix = "[a-z0-9]+"
 	case "statefulset":
 		suffix = "[0-9]+"
 	case "job":
@@ -287,6 +310,8 @@ func getSelectionRegex(kind, name string) (string, error) {
 		suffix = "[a-z0-9]+-[a-z0-9]+"
 	case "ingress":
 		return name, nil
+	case "daemonset":
+		suffix = "[a-z0-9]+"
 	default:
 		return "", fmt.Errorf("not a supported controller to query for metrics")
 	}
@@ -424,8 +449,6 @@ func createHPAAbsoluteMemoryThresholdQuery(memMetricName, metricName, podSelecti
 		metricName,
 		kubeMetricsHPASelectorTwo,
 	)
-
-	fmt.Println("query is:")
 
 	return fmt.Sprintf(
 		`(%s * on(%s) %s) or (%s * on(%s) %s)`,

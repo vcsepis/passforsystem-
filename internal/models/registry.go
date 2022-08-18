@@ -31,6 +31,7 @@ type Registry struct {
 
 	GCPIntegrationID   uint
 	AWSIntegrationID   uint
+	AzureIntegrationID uint
 	DOIntegrationID    uint
 	BasicIntegrationID uint
 
@@ -44,9 +45,15 @@ func (r *Registry) ToRegistryType() *types.Registry {
 	if r.AWSIntegrationID != 0 {
 		serv = types.ECR
 	} else if r.GCPIntegrationID != 0 {
-		serv = types.GCR
+		if strings.Contains(r.URL, "pkg.dev") {
+			serv = types.GAR
+		} else {
+			serv = types.GCR
+		}
 	} else if r.DOIntegrationID != 0 {
 		serv = types.DOCR
+	} else if r.AzureIntegrationID != 0 {
+		serv = types.ACR
 	} else if strings.Contains(r.URL, "index.docker.io") {
 		serv = types.DockerHub
 	}
@@ -63,10 +70,11 @@ func (r *Registry) ToRegistryType() *types.Registry {
 		ProjectID:          r.ProjectID,
 		Name:               r.Name,
 		URL:                uri,
-		Service:            serv,
+		Service:            string(serv),
 		InfraID:            r.InfraID,
 		GCPIntegrationID:   r.GCPIntegrationID,
 		AWSIntegrationID:   r.AWSIntegrationID,
+		AzureIntegrationID: r.AzureIntegrationID,
 		DOIntegrationID:    r.DOIntegrationID,
 		BasicIntegrationID: r.BasicIntegrationID,
 	}

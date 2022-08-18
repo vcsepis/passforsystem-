@@ -20,6 +20,7 @@ import {
 } from "components/porter-form/types";
 import Helper from "components/form-components/Helper";
 import DocsHelper from "components/DocsHelper";
+import { isEmpty, isObject } from "lodash";
 
 type PropsType = {
   namespace: string;
@@ -31,6 +32,7 @@ type PropsType = {
   syncedEnvGroups?: PopulatedEnvGroup[];
   setSyncedEnvGroups?: (values: PopulatedEnvGroup) => void;
   normalEnvVarsOnly?: boolean;
+  availableEnvGroups?: PopulatedEnvGroup[];
 };
 
 type StateType = {
@@ -113,6 +115,13 @@ export default class LoadEnvGroupModal extends Component<PropsType, StateType> {
   };
 
   componentDidMount() {
+    if (Array.isArray(this.props.availableEnvGroups)) {
+      this.setState({
+        envGroups: this.props.availableEnvGroups,
+        loading: false,
+      });
+      return;
+    }
     this.updateEnvGroups();
   }
 
@@ -157,6 +166,17 @@ export default class LoadEnvGroupModal extends Component<PropsType, StateType> {
   };
 
   potentiallyOverriddenKeys(incoming: Record<string, string>): KeyValue[] {
+    if (!incoming) {
+      return [];
+    }
+
+    if (
+      !isObject(this.props.existingValues) ||
+      isEmpty(this.props.existingValues)
+    ) {
+      return [];
+    }
+
     // console.log(incoming, this.props.existingValues);
     return Object.entries(incoming)
       .filter(([key]) => this.props.existingValues[key])
@@ -227,12 +247,18 @@ export default class LoadEnvGroupModal extends Component<PropsType, StateType> {
           {this.state.selectedEnvGroup && (
             <SidebarSection>
               <GroupEnvPreview>
-                {Object.entries(this.state.selectedEnvGroup.variables)
-                  .map(
-                    ([key, value]) =>
-                      `${key}=${formattedEnvironmentValue(value)}`
-                  )
-                  .join("\n")}
+                {isObject(this.state.selectedEnvGroup.variables) ? (
+                  <>
+                    {Object.entries(this.state.selectedEnvGroup.variables || {})
+                      .map(
+                        ([key, value]) =>
+                          `${key}=${formattedEnvironmentValue(value)}`
+                      )
+                      .join("\n")}
+                  </>
+                ) : (
+                  <>This environment group has no variables</>
+                )}
               </GroupEnvPreview>
               {clashingKeys?.length > 0 && (
                 <>

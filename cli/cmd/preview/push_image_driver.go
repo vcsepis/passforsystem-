@@ -1,10 +1,15 @@
 package preview
 
 import (
+	"context"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/porter-dev/porter/api/types"
 	"github.com/porter-dev/porter/cli/cmd/config"
+	"github.com/porter-dev/porter/cli/cmd/deploy"
 	"github.com/porter-dev/porter/cli/cmd/docker"
 	"github.com/porter-dev/switchboard/pkg/drivers"
 	"github.com/porter-dev/switchboard/pkg/models"
@@ -30,7 +35,7 @@ func NewPushDriver(resource *models.Resource, opts *drivers.SharedDriverOpts) (d
 		output:      make(map[string]interface{}),
 	}
 
-	target, err := GetTarget(resource.Target)
+	target, err := GetTarget(resource.Name, resource.Target)
 	if err != nil {
 		return nil, err
 	}
@@ -67,6 +72,75 @@ func (d *PushDriver) Apply(resource *models.Resource) (*models.Resource, error) 
 	agent, err := docker.NewAgentWithAuthGetter(client, d.target.Project)
 	if err != nil {
 		return nil, err
+	}
+
+	_, err = client.GetRelease(
+		context.Background(),
+		d.target.Project,
+		d.target.Cluster,
+		d.target.Namespace,
+		d.target.AppName,
+	)
+
+	shouldCreate := err != nil
+
+	if shouldCreate {
+		regList, err := client.ListRegistries(context.Background(), d.target.Project)
+
+		if err != nil {
+			return nil, err
+		}
+
+		var registryURL string
+
+		if len(*regList) == 0 {
+			return nil, fmt.Errorf("no registry found")
+		} else {
+			registryURL = (*regList)[0].URL
+		}
+
+		var repoSuffix string
+
+		if repoName := os.Getenv("PORTER_REPO_NAME"); repoName != "" {
+			if repoOwner := os.Getenv("PORTER_REPO_OWNER"); repoOwner != "" {
+				repoSuffix = strings.ToLower(strings.ReplaceAll(fmt.Sprintf("%s-%s", repoOwner, repoName), "_", "-"))
+			}
+		}
+
+		sharedOpts := &deploy.SharedOpts{
+			ProjectID: d.target.Project,
+			ClusterID: d.target.Cluster,
+			Namespace: d.target.Namespace,
+		}
+
+		createAgent := &deploy.CreateAgent{
+			Client: client,
+			CreateOpts: &deploy.CreateOpts{
+				SharedOpts:  sharedOpts,
+				ReleaseName: d.target.AppName,
+				RegistryURL: registryURL,
+				RepoSuffix:  repoSuffix,
+			},
+		}
+
+		regID, imageURL, err := createAgent.GetImageRepoURL(d.target.AppName, sharedOpts.Namespace)
+
+		if err != nil {
+			return nil, err
+		}
+
+		err = client.CreateRepository(
+			context.Background(),
+			sharedOpts.ProjectID,
+			regID,
+			&types.CreateRegistryRepositoryRequest{
+				ImageRepoURI: imageURL,
+			},
+		)
+
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = agent.PushImage(d.config.Push.Image)

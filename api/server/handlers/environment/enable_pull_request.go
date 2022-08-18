@@ -1,6 +1,7 @@
 package environment
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -14,6 +15,7 @@ import (
 	"github.com/porter-dev/porter/api/server/shared/config"
 	"github.com/porter-dev/porter/api/types"
 	"github.com/porter-dev/porter/internal/models"
+	"gorm.io/gorm"
 )
 
 type EnablePullRequestHandler struct {
@@ -44,6 +46,11 @@ func (c *EnablePullRequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 	env, err := c.Repo().Environment().ReadEnvironmentByOwnerRepoName(project.ID, cluster.ID, request.RepoOwner, request.RepoName)
 
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.HandleAPIError(w, r, apierrors.NewErrNotFound(fmt.Errorf("environment not found in cluster and project")))
+			return
+		}
+
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
 		return
 	}
@@ -56,14 +63,21 @@ func (c *EnablePullRequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 	}
 
 	// add an extra check that the installation has permission to read this pull request
-	pr, ghResp, err := client.PullRequests.Get(r.Context(), env.GitRepoOwner, env.GitRepoName, int(request.Number))
+	pr, _, err := client.PullRequests.Get(r.Context(), env.GitRepoOwner, env.GitRepoName, int(request.Number))
 
 	if err != nil {
-		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+		c.HandleAPIError(w, r, apierrors.NewErrPassThroughToClient(fmt.Errorf("%v: %w", errGithubAPI, err),
+			http.StatusConflict))
 		return
 	}
 
-	ghResp, err = client.Actions.CreateWorkflowDispatchEventByFileName(
+	if pr.GetState() == "closed" {
+		c.HandleAPIError(w, r, apierrors.NewErrPassThroughToClient(fmt.Errorf("cannot enable deployment for closed PR"),
+			http.StatusConflict))
+		return
+	}
+
+	ghResp, err := client.Actions.CreateWorkflowDispatchEventByFileName(
 		r.Context(), env.GitRepoOwner, env.GitRepoName, fmt.Sprintf("porter_%s_env.yml", env.Name),
 		github.CreateWorkflowDispatchEventRequest{
 			Ref: request.BranchFrom,
@@ -80,17 +94,17 @@ func (c *EnablePullRequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 		if ghResp.StatusCode == 404 {
 			c.HandleAPIError(w, r, apierrors.NewErrPassThroughToClient(
 				fmt.Errorf(
-					"Please make sure the preview environment workflow files are present in PR branch %s and are up to"+
+					"please make sure the preview environment workflow files are present in PR branch %s and are up to"+
 						" date with the default branch", request.BranchFrom,
-				), 404),
+				), http.StatusConflict),
 			)
 			return
 		} else if ghResp.StatusCode == 422 {
 			c.HandleAPIError(w, r, apierrors.NewErrPassThroughToClient(
 				fmt.Errorf(
-					"Please make sure the workflow files in PR branch %s are up to date with the default branch",
+					"please make sure the workflow files in PR branch %s are up to date with the default branch",
 					request.BranchFrom,
-				), 422),
+				), http.StatusConflict),
 			)
 			return
 		}
@@ -101,7 +115,7 @@ func (c *EnablePullRequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	namespace := fmt.Sprintf("pr-%d-%s", request.Number, strings.ReplaceAll(env.GitRepoName, "_", "-"))
+	namespace := fmt.Sprintf("pr-%d-%s", request.Number, strings.ToLower(strings.ReplaceAll(env.GitRepoName, "_", "-")))
 
 	// create the deployment
 	depl, err := c.Repo().Environment().CreateDeployment(&models.Deployment{
@@ -135,5 +149,4 @@ func (c *EnablePullRequestHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
 		return
 	}
-
 }

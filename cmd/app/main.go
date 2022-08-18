@@ -1,3 +1,5 @@
+//go:generate swagger generate spec
+
 package main
 
 import (
@@ -91,15 +93,33 @@ func initData(conf *config.Config) error {
 			return err
 		}
 
+		// determine if there are any clusters in the project already
+		clusters, err := conf.Repo.Cluster().ListClustersByProjectID(1)
+
+		if err != nil {
+			return err
+		}
+
+		// if there are already clusters in the project, determine if any of the clusters are using an
+		// in-cluster auth mechanism
+		if len(clusters) > 0 {
+			for _, cluster := range clusters {
+				if cluster.AuthMechanism == models.InCluster {
+					return nil
+				}
+			}
+		}
+
 		_, err = conf.Repo.Cluster().ReadCluster(1, 1)
 
 		if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 			l.Debug().Msg("default cluster not found: attempting creation")
 
 			_, err = conf.Repo.Cluster().CreateCluster(&models.Cluster{
-				Name:          defaultClusterName,
-				AuthMechanism: models.InCluster,
-				ProjectID:     1,
+				Name:                defaultClusterName,
+				AuthMechanism:       models.InCluster,
+				ProjectID:           1,
+				MonitorHelmReleases: true,
 			})
 
 			if err != nil {

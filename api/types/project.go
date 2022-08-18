@@ -7,6 +7,15 @@ type Project struct {
 	PreviewEnvsEnabled  bool    `json:"preview_envs_enabled"`
 	RDSDatabasesEnabled bool    `json:"enable_rds_databases"`
 	ManagedInfraEnabled bool    `json:"managed_infra_enabled"`
+	APITokensEnabled    bool    `json:"api_tokens_enabled"`
+	StacksEnabled       bool    `json:"stacks_enabled"`
+}
+
+type FeatureFlags struct {
+	PreviewEnvironmentsEnabled string `json:"preview_environments_enabled,omitempty"`
+	ManagedInfraEnabled        string `json:"managed_infra_enabled,omitempty"`
+	StacksEnabled              string `json:"stacks_enabled,omitempty"`
+	ManagedDatabasesEnabled    string `json:"managed_databases_enabled,omitempty"`
 }
 
 type CreateProjectRequest struct {

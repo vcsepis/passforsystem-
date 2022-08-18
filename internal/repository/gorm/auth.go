@@ -1318,3 +1318,464 @@ func (repo *GithubAppOAuthIntegrationRepository) UpdateGithubAppOauthIntegration
 
 	return am, nil
 }
+
+// AzureIntegrationRepository uses gorm.DB for querying the database
+type AzureIntegrationRepository struct {
+	db             *gorm.DB
+	key            *[32]byte
+	storageBackend credentials.CredentialStorage
+}
+
+// NewAzureIntegrationRepository returns a AzureIntegrationRepository which uses
+// gorm.DB for querying the database. It accepts an encryption key to encrypt
+// sensitive data
+func NewAzureIntegrationRepository(
+	db *gorm.DB,
+	key *[32]byte,
+	storageBackend credentials.CredentialStorage,
+) repository.AzureIntegrationRepository {
+	return &AzureIntegrationRepository{db, key, storageBackend}
+}
+
+// CreateAzureIntegration creates a new Azure auth mechanism
+func (repo *AzureIntegrationRepository) CreateAzureIntegration(
+	az *ints.AzureIntegration,
+) (*ints.AzureIntegration, error) {
+	err := repo.EncryptAzureIntegrationData(az, repo.key)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// if storage backend is not nil, strip out credential data, which will be stored in credential
+	// storage backend after write to DB
+	var credentialData = &credentials.AzureCredential{}
+
+	if repo.storageBackend != nil {
+		credentialData.ServicePrincipalSecret = az.ServicePrincipalSecret
+		credentialData.ACRPassword1 = az.ACRPassword1
+		credentialData.ACRPassword2 = az.ACRPassword2
+		credentialData.AKSPassword = az.AKSPassword
+		az.ServicePrincipalSecret = []byte{}
+		az.ACRPassword1 = []byte{}
+		az.ACRPassword2 = []byte{}
+		az.AKSPassword = []byte{}
+	}
+
+	project := &models.Project{}
+
+	if err := repo.db.Where("id = ?", az.ProjectID).First(&project).Error; err != nil {
+		return nil, err
+	}
+
+	assoc := repo.db.Model(&project).Association("AzureIntegrations")
+
+	if assoc.Error != nil {
+		return nil, assoc.Error
+	}
+
+	if err := assoc.Append(az); err != nil {
+		return nil, err
+	}
+
+	if repo.storageBackend != nil {
+		err = repo.storageBackend.WriteAzureCredential(az, credentialData)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return az, nil
+}
+
+// OverwriteAzureIntegration overwrites the Azure credential in the DB
+func (repo *AzureIntegrationRepository) OverwriteAzureIntegration(
+	az *ints.AzureIntegration,
+) (*ints.AzureIntegration, error) {
+	err := repo.EncryptAzureIntegrationData(az, repo.key)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// if storage backend is not nil, strip out credential data, which will be stored in credential
+	// storage backend after write to DB
+	var credentialData = &credentials.AzureCredential{}
+
+	if repo.storageBackend != nil {
+		credentialData.ServicePrincipalSecret = az.ServicePrincipalSecret
+		credentialData.ACRPassword1 = az.ACRPassword1
+		credentialData.ACRPassword2 = az.ACRPassword2
+		credentialData.AKSPassword = az.AKSPassword
+		az.ServicePrincipalSecret = []byte{}
+		az.ACRPassword1 = []byte{}
+		az.ACRPassword2 = []byte{}
+		az.AKSPassword = []byte{}
+	}
+
+	if err := repo.db.Save(az).Error; err != nil {
+		return nil, err
+	}
+
+	if repo.storageBackend != nil {
+		err = repo.storageBackend.WriteAzureCredential(az, credentialData)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// perform another read
+	return repo.ReadAzureIntegration(az.ProjectID, az.ID)
+}
+
+// ReadAzureIntegration finds a Azure auth mechanism by id
+func (repo *AzureIntegrationRepository) ReadAzureIntegration(
+	projectID, id uint,
+) (*ints.AzureIntegration, error) {
+	az := &ints.AzureIntegration{}
+
+	if err := repo.db.Where("project_id = ? AND id = ?", projectID, id).First(&az).Error; err != nil {
+		return nil, err
+	}
+
+	if repo.storageBackend != nil {
+		credentialData, err := repo.storageBackend.GetAzureCredential(az)
+
+		if err != nil {
+			return nil, err
+		}
+
+		az.ServicePrincipalSecret = credentialData.ServicePrincipalSecret
+		az.ACRPassword1 = credentialData.ACRPassword1
+		az.ACRPassword2 = credentialData.ACRPassword2
+		az.AKSPassword = credentialData.AKSPassword
+	}
+
+	err := repo.DecryptAzureIntegrationData(az, repo.key)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return az, nil
+}
+
+// ListAzureIntegrationsByProjectID finds all Azure auth mechanisms
+// for a given project id
+func (repo *AzureIntegrationRepository) ListAzureIntegrationsByProjectID(
+	projectID uint,
+) ([]*ints.AzureIntegration, error) {
+	azs := []*ints.AzureIntegration{}
+
+	if err := repo.db.Where("project_id = ?", projectID).Find(&azs).Error; err != nil {
+		return nil, err
+	}
+
+	return azs, nil
+}
+
+// EncryptAWSIntegrationData will encrypt the aws integration data before
+// writing to the DB
+func (repo *AzureIntegrationRepository) EncryptAzureIntegrationData(
+	az *ints.AzureIntegration,
+	key *[32]byte,
+) error {
+	if len(az.ServicePrincipalSecret) > 0 {
+		cipherData, err := encryption.Encrypt(az.ServicePrincipalSecret, key)
+
+		if err != nil {
+			return err
+		}
+
+		az.ServicePrincipalSecret = cipherData
+	}
+
+	if len(az.ACRPassword1) > 0 {
+		cipherData, err := encryption.Encrypt(az.ACRPassword1, key)
+
+		if err != nil {
+			return err
+		}
+
+		az.ACRPassword1 = cipherData
+	}
+
+	if len(az.ACRPassword2) > 0 {
+		cipherData, err := encryption.Encrypt(az.ACRPassword2, key)
+
+		if err != nil {
+			return err
+		}
+
+		az.ACRPassword2 = cipherData
+	}
+
+	if len(az.AKSPassword) > 0 {
+		cipherData, err := encryption.Encrypt(az.AKSPassword, key)
+
+		if err != nil {
+			return err
+		}
+
+		az.AKSPassword = cipherData
+	}
+
+	return nil
+}
+
+// DecryptAzureIntegrationData will decrypt the Azure integration data before
+// returning it from the DB
+func (repo *AzureIntegrationRepository) DecryptAzureIntegrationData(
+	az *ints.AzureIntegration,
+	key *[32]byte,
+) error {
+	if len(az.ServicePrincipalSecret) > 0 {
+		plaintext, err := encryption.Decrypt(az.ServicePrincipalSecret, key)
+
+		if err != nil {
+			return err
+		}
+
+		az.ServicePrincipalSecret = plaintext
+	}
+
+	if len(az.ACRPassword1) > 0 {
+		plaintext, err := encryption.Decrypt(az.ACRPassword1, key)
+
+		if err != nil {
+			return err
+		}
+
+		az.ACRPassword1 = plaintext
+	}
+
+	if len(az.ACRPassword2) > 0 {
+		plaintext, err := encryption.Decrypt(az.ACRPassword2, key)
+
+		if err != nil {
+			return err
+		}
+
+		az.ACRPassword2 = plaintext
+	}
+
+	if len(az.AKSPassword) > 0 {
+		plaintext, err := encryption.Decrypt(az.AKSPassword, key)
+
+		if err != nil {
+			return err
+		}
+
+		az.AKSPassword = plaintext
+	}
+
+	return nil
+}
+
+// GitlabIntegrationRepository uses gorm.DB for querying the database
+type GitlabIntegrationRepository struct {
+	db             *gorm.DB
+	key            *[32]byte
+	storageBackend credentials.CredentialStorage
+}
+
+// NewGitlabIntegrationRepository returns a GitlabIntegrationRepository which uses
+// gorm.DB for querying the database
+func NewGitlabIntegrationRepository(
+	db *gorm.DB,
+	key *[32]byte,
+	storageBackend credentials.CredentialStorage,
+) repository.GitlabIntegrationRepository {
+	return &GitlabIntegrationRepository{db, key, storageBackend}
+}
+
+// CreateIntegration adds a new GitlabIntegration row to the gitlab_integration table in the database
+func (repo *GitlabIntegrationRepository) CreateGitlabIntegration(gi *ints.GitlabIntegration) (*ints.GitlabIntegration, error) {
+	err := repo.EncryptGitlabIntegrationData(gi, repo.key)
+
+	if err != nil {
+		return nil, err
+	}
+
+	// if storage backend is not nil, strip out credential data, which will be stored in credential
+	// storage backend after write to DB
+	var credentialData = &credentials.GitlabCredential{}
+
+	if repo.storageBackend != nil {
+		credentialData.AppClientID = gi.AppClientID
+		credentialData.AppClientSecret = gi.AppClientSecret
+
+		gi.AppClientID = []byte{}
+		gi.AppClientSecret = []byte{}
+	}
+
+	project := &models.Project{}
+
+	if err := repo.db.Where("id = ?", gi.ProjectID).First(&project).Error; err != nil {
+		return nil, err
+	}
+
+	assoc := repo.db.Model(&project).Association("GitlabIntegrations")
+
+	if assoc.Error != nil {
+		return nil, assoc.Error
+	}
+
+	if err := assoc.Append(gi); err != nil {
+		return nil, err
+	}
+
+	if repo.storageBackend != nil {
+		err = repo.storageBackend.WriteGitlabCredential(gi, credentialData)
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return gi, nil
+}
+
+func (repo *GitlabIntegrationRepository) ReadGitlabIntegration(projectID, id uint) (*ints.GitlabIntegration, error) {
+	gi := &ints.GitlabIntegration{}
+
+	if err := repo.db.Where("project_id = ? AND id = ?", projectID, id).First(&gi).Error; err != nil {
+		return nil, err
+	}
+
+	if repo.storageBackend != nil {
+		credentialData, err := repo.storageBackend.GetGitlabCredential(gi)
+
+		if err != nil {
+			return nil, err
+		}
+
+		gi.AppClientID = credentialData.AppClientID
+
+		gi.AppClientSecret = credentialData.AppClientSecret
+	}
+
+	err := repo.DecryptGitlabIntegrationData(gi, repo.key)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return gi, nil
+}
+
+func (repo *GitlabIntegrationRepository) ListGitlabIntegrationsByProjectID(projectID uint) ([]*ints.GitlabIntegration, error) {
+	gi := []*ints.GitlabIntegration{}
+
+	if err := repo.db.Where("project_id = ? AND deleted_at IS NULL", projectID).Find(&gi).Error; err != nil {
+		return nil, err
+	}
+
+	return gi, nil
+}
+
+// EncryptGitlabIntegrationData will encrypt the gitlab integration data before
+// writing to the DB
+func (repo *GitlabIntegrationRepository) EncryptGitlabIntegrationData(
+	gi *ints.GitlabIntegration,
+	key *[32]byte,
+) error {
+	if len(gi.AppClientID) > 0 {
+		cipherData, err := encryption.Encrypt(gi.AppClientID, key)
+
+		if err != nil {
+			return err
+		}
+
+		gi.AppClientID = cipherData
+	}
+
+	if len(gi.AppClientSecret) > 0 {
+		cipherData, err := encryption.Encrypt(gi.AppClientSecret, key)
+
+		if err != nil {
+			return err
+		}
+
+		gi.AppClientSecret = cipherData
+	}
+
+	return nil
+}
+
+// DecryptGitlabIntegrationData will decrypt the gitlab integration data before
+// returning it from the DB
+func (repo *GitlabIntegrationRepository) DecryptGitlabIntegrationData(
+	gi *ints.GitlabIntegration,
+	key *[32]byte,
+) error {
+	if len(gi.AppClientID) > 0 {
+		plaintext, err := encryption.Decrypt(gi.AppClientID, key)
+
+		if err != nil {
+			return err
+		}
+
+		gi.AppClientID = plaintext
+	}
+
+	if len(gi.AppClientSecret) > 0 {
+		plaintext, err := encryption.Decrypt(gi.AppClientSecret, key)
+
+		if err != nil {
+			return err
+		}
+
+		gi.AppClientSecret = plaintext
+	}
+
+	return nil
+}
+
+// GitlabAppOAuthIntegrationRepository uses gorm.DB for querying the database
+type GitlabAppOAuthIntegrationRepository struct {
+	db             *gorm.DB
+	key            *[32]byte
+	storageBackend credentials.CredentialStorage
+}
+
+// NewGitlabAppOAuthIntegrationRepository returns a GitlabAppOAuthIntegrationRepository which uses
+// gorm.DB for querying the database
+func NewGitlabAppOAuthIntegrationRepository(
+	db *gorm.DB,
+	key *[32]byte,
+	storageBackend credentials.CredentialStorage,
+) repository.GitlabAppOAuthIntegrationRepository {
+	return &GitlabAppOAuthIntegrationRepository{db, key, storageBackend}
+}
+
+func (repo *GitlabAppOAuthIntegrationRepository) CreateGitlabAppOAuthIntegration(
+	gi *ints.GitlabAppOAuthIntegration,
+) (*ints.GitlabAppOAuthIntegration, error) {
+	if err := repo.db.Create(gi).Error; err != nil {
+		return nil, err
+	}
+
+	return gi, nil
+}
+
+func (repo *GitlabAppOAuthIntegrationRepository) ReadGitlabAppOAuthIntegration(
+	userID, projectID, integrationID uint,
+) (*ints.GitlabAppOAuthIntegration, error) {
+	gi := &ints.GitlabAppOAuthIntegration{}
+
+	if err := repo.db.
+		Order("gitlab_app_o_auth_integrations.id desc").
+		Joins("INNER JOIN gitlab_integrations ON gitlab_integrations.id = gitlab_app_o_auth_integrations.gitlab_integration_id").
+		Joins("INNER JOIN o_auth_integrations ON o_auth_integrations.id = gitlab_app_o_auth_integrations.o_auth_integration_id").
+		Where("o_auth_integrations.user_id = ? AND o_auth_integrations.project_id = ? AND"+
+			" gitlab_integrations.id = ? AND gitlab_integrations.deleted_at IS NULL AND"+
+			" gitlab_app_o_auth_integrations.deleted_at IS NULL AND o_auth_integrations.deleted_at IS NULL",
+			userID, projectID, integrationID).First(&gi).Error; err != nil {
+		return nil, err
+	}
+
+	return gi, nil
+}

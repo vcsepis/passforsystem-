@@ -1,3 +1,4 @@
+import { DeviconsNameList } from "assets/devicons-name-list";
 import Helper from "components/form-components/Helper";
 import InputRow from "components/form-components/InputRow";
 import SelectRow from "components/form-components/SelectRow";
@@ -11,8 +12,6 @@ import styled, { keyframes } from "styled-components";
 const DEFAULT_BUILDER_NAME = "heroku";
 const DEFAULT_PAKETO_STACK = "paketobuildpacks/builder:full";
 const DEFAULT_HEROKU_STACK = "heroku/buildpacks:20";
-
-const URLRegex = /[(http(s)?):\/\/(www\.)?a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)/;
 
 type BuildConfig = {
   builder: string;
@@ -71,22 +70,40 @@ export const BuildpackSelection: React.FC<{
     }
   }, [selectedBuilder, selectedStack, selectedBuildpacks]);
 
-  useEffect(() => {
-    api
-      .detectBuildpack<DetectBuildpackResponse>(
+  const detectBuildpack = () => {
+    if (actionConfig.kind === "gitlab") {
+      return api.detectGitlabBuildpack<DetectBuildpackResponse>(
         "<token>",
-        {
-          dir: folderPath || ".",
-        },
+        { dir: folderPath || "." },
         {
           project_id: currentProject.id,
-          git_repo_id: actionConfig.git_repo_id,
-          kind: "github",
-          owner: actionConfig.git_repo.split("/")[0],
-          name: actionConfig.git_repo.split("/")[1],
+          integration_id: actionConfig.gitlab_integration_id,
+
+          repo_owner: actionConfig.git_repo.split("/")[0],
+          repo_name: actionConfig.git_repo.split("/")[1],
           branch: branch,
         }
-      )
+      );
+    }
+
+    return api.detectBuildpack<DetectBuildpackResponse>(
+      "<token>",
+      {
+        dir: folderPath || ".",
+      },
+      {
+        project_id: currentProject.id,
+        git_repo_id: actionConfig.git_repo_id,
+        kind: "github",
+        owner: actionConfig.git_repo.split("/")[0],
+        name: actionConfig.git_repo.split("/")[1],
+        branch: branch,
+      }
+    );
+  };
+
+  useEffect(() => {
+    detectBuildpack()
       // getMockData()
       .then(({ data }) => {
         const builders = data;
@@ -179,9 +196,16 @@ export const BuildpackSelection: React.FC<{
     action: "remove" | "add"
   ) => {
     return buildpacks?.map((buildpack) => {
-      const icon = `devicon-${buildpack?.name?.toLowerCase()}-plain colored`;
+      const [languageName] = buildpack.name?.split("/").reverse();
+
+      const devicon = DeviconsNameList.find(
+        (devicon) => languageName.toLowerCase() === devicon.name
+      );
+
+      const icon = `devicon-${devicon?.name}-plain colored`;
+
       let disableIcon = false;
-      if (URLRegex.test(buildpack.buildpack)) {
+      if (!devicon) {
         disableIcon = true;
       }
 
@@ -314,11 +338,6 @@ export const AddCustomBuildpackForm: React.FC<{
   const [error, setError] = useState(false);
 
   const handleAddCustomBuildpack = () => {
-    if (!URLRegex.test(buildpackUrl)) {
-      setError(true);
-      return;
-    }
-
     const buildpack: Buildpack = {
       buildpack: buildpackUrl,
       name: buildpackUrl,

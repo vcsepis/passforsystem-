@@ -173,6 +173,69 @@ func (c *RegistryGetGCRTokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Re
 	c.WriteResult(w, r, resp)
 }
 
+type RegistryGetGARTokenHandler struct {
+	handlers.PorterHandlerReadWriter
+}
+
+func NewRegistryGetGARTokenHandler(
+	config *config.Config,
+	decoderValidator shared.RequestDecoderValidator,
+	writer shared.ResultWriter,
+) *RegistryGetGARTokenHandler {
+	return &RegistryGetGARTokenHandler{
+		PorterHandlerReadWriter: handlers.NewDefaultPorterHandler(config, decoderValidator, writer),
+	}
+}
+
+func (c *RegistryGetGARTokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	proj, _ := r.Context().Value(types.ProjectScope).(*models.Project)
+
+	request := &types.GetRegistryGCRTokenRequest{}
+
+	if ok := c.DecodeAndValidate(w, r, request); !ok {
+		return
+	}
+
+	// list registries and find one that matches the region
+	regs, err := c.Repo().Registry().ListRegistriesByProjectID(proj.ID)
+
+	if err != nil {
+		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+		return
+	}
+
+	var token string
+	var expiresAt *time.Time
+
+	for _, reg := range regs {
+		if reg.GCPIntegrationID != 0 && strings.Contains(reg.URL, request.ServerURL) {
+			_reg := registry.Registry(*reg)
+
+			oauthTok, err := _reg.GetGARToken(c.Repo())
+
+			// if the oauth token is not nil, but the error is not nil, we still return the token
+			// but log an error
+			if oauthTok != nil && err != nil {
+				c.HandleAPIErrorNoWrite(w, r, apierrors.NewErrInternal(err))
+			} else if err != nil {
+				c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+				return
+			}
+
+			token = oauthTok.AccessToken
+			expiresAt = &oauthTok.Expiry
+			break
+		}
+	}
+
+	resp := &types.GetRegistryTokenResponse{
+		Token:     token,
+		ExpiresAt: expiresAt,
+	}
+
+	c.WriteResult(w, r, resp)
+}
+
 type RegistryGetDOCRTokenHandler struct {
 	handlers.PorterHandlerReadWriter
 }
@@ -279,6 +342,60 @@ func (c *RegistryGetDockerhubTokenHandler) ServeHTTP(w http.ResponseWriter, r *h
 			}
 
 			token = base64.StdEncoding.EncodeToString([]byte(string(basic.Username) + ":" + string(basic.Password)))
+
+			// we'll just set an arbitrary 30-day expiry time (this is not enforced)
+			timeExpires := time.Now().Add(30 * 24 * 3600 * time.Second)
+			expiresAt = &timeExpires
+		}
+	}
+
+	resp := &types.GetRegistryTokenResponse{
+		Token:     token,
+		ExpiresAt: expiresAt,
+	}
+
+	c.WriteResult(w, r, resp)
+}
+
+type RegistryGetACRTokenHandler struct {
+	handlers.PorterHandlerReadWriter
+}
+
+func NewRegistryGetACRTokenHandler(
+	config *config.Config,
+	decoderValidator shared.RequestDecoderValidator,
+	writer shared.ResultWriter,
+) *RegistryGetACRTokenHandler {
+	return &RegistryGetACRTokenHandler{
+		PorterHandlerReadWriter: handlers.NewDefaultPorterHandler(config, decoderValidator, writer),
+	}
+}
+
+func (c *RegistryGetACRTokenHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	proj, _ := r.Context().Value(types.ProjectScope).(*models.Project)
+
+	// list registries and find one that matches the region
+	regs, err := c.Repo().Registry().ListRegistriesByProjectID(proj.ID)
+
+	if err != nil {
+		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+		return
+	}
+
+	var token string
+	var expiresAt *time.Time
+
+	for _, reg := range regs {
+		if reg.AzureIntegrationID != 0 && strings.Contains(reg.URL, "azurecr.io") {
+			_reg := registry.Registry(*reg)
+
+			username, pw, err := _reg.GetACRCredentials(c.Repo())
+
+			if err != nil {
+				continue
+			}
+
+			token = base64.StdEncoding.EncodeToString([]byte(string(username) + ":" + string(pw)))
 
 			// we'll just set an arbitrary 30-day expiry time (this is not enforced)
 			timeExpires := time.Now().Add(30 * 24 * 3600 * time.Second)

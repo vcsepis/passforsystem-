@@ -1,6 +1,7 @@
 package environment
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/porter-dev/porter/api/server/handlers"
@@ -31,11 +32,13 @@ func (c *ListEnvironmentHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	envs, err := c.Repo().Environment().ListEnvironments(project.ID, cluster.ID)
 
 	if err != nil {
-		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+		c.HandleAPIError(w, r, apierrors.NewErrPassThroughToClient(
+			fmt.Errorf("error listing environments"), http.StatusInternalServerError, err.Error(),
+		))
 		return
 	}
 
-	res := make([]*types.Environment, 0)
+	var res types.ListEnvironmentsResponse
 
 	for _, env := range envs {
 		environment := env.ToEnvironmentType()
@@ -43,7 +46,10 @@ func (c *ListEnvironmentHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 		depls, err := c.Repo().Environment().ListDeployments(env.ID)
 
 		if err != nil {
-			c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+			c.HandleAPIError(w, r, apierrors.NewErrPassThroughToClient(
+				fmt.Errorf("error listing environments: error listing deployments for environment ID %d", env.ID),
+				http.StatusInternalServerError, err.Error(),
+			))
 			return
 		}
 

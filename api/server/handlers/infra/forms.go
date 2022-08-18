@@ -9,13 +9,34 @@ tabs:
   label: Configuration
   sections:
   - name: section_one
-    contents: 
+    contents:
     - type: heading
       label: String to echo
     - type: string-input
       variable: echo
       settings:
         default: hello
+`
+
+const s3Form = `name: S3
+hasSource: false
+includeHiddenFields: true
+isClusterScoped: true
+tabs:
+- name: main
+  label: Main
+  sections:
+  - name: heading
+    contents:
+    - type: heading
+      label: S3 Settings
+  - name: bucket_name
+    contents:
+    - type: string-input
+      label: Bucket Name
+      required: true
+      placeholder: "s3-bucket-name"
+      variable: bucket_name
 `
 
 const rdsForm = `name: RDS
@@ -27,7 +48,7 @@ tabs:
   label: Main
   sections:
   - name: heading
-    contents: 
+    contents:
     - type: heading
       label: Database Settings
   - name: user
@@ -89,7 +110,7 @@ tabs:
         - label: "Postgres 13"
           value: postgres13
   - name: pg-9-versions
-    show_if: 
+    show_if:
       is: "postgres9"
       variable: db_family
     contents:
@@ -144,7 +165,7 @@ tabs:
         - label: "v9.6.23"
           value: "9.6.23"
   - name: pg-10-versions
-    show_if: 
+    show_if:
       is: "postgres10"
       variable: db_family
     contents:
@@ -191,7 +212,7 @@ tabs:
         - label: "v10.18"
           value: "10.18"
   - name: pg-11-versions
-    show_if: 
+    show_if:
       is: "postgres11"
       variable: db_family
     contents:
@@ -228,7 +249,7 @@ tabs:
         - label: "v11.13"
           value: "11.13"
   - name: pg-12-versions
-    show_if: 
+    show_if:
       is: "postgres12"
       variable: db_family
     contents:
@@ -255,7 +276,7 @@ tabs:
         - label: "v12.10"
           value: "12.10"
   - name: pg-13-versions
-    show_if: 
+    show_if:
       is: "postgres13"
       variable: db_family
     contents:
@@ -305,7 +326,7 @@ tabs:
         default: 20
     - type: checkbox
       variable: db_storage_encrypted
-      label: Enable storage encryption for the database. 
+      label: Enable storage encryption for the database.
       settings:
         default: false
 - name: advanced
@@ -332,7 +353,7 @@ tabs:
   label: Configuration
   sections:
   - name: section_one
-    contents: 
+    contents:
     - type: heading
       label: ECR Configuration
     - type: string-input
@@ -350,7 +371,7 @@ tabs:
   label: Configuration
   sections:
   - name: section_one
-    contents: 
+    contents:
     - type: heading
       label: EKS Configuration
     - type: select
@@ -361,16 +382,26 @@ tabs:
         options:
         - label: t2.medium
           value: t2.medium
+        - label: t2.large
+          value: t2.large
         - label: t2.xlarge
           value: t2.xlarge
         - label: t2.2xlarge
           value: t2.2xlarge
         - label: t3.medium
           value: t3.medium
+        - label: t3.large
+          value: t3.large
         - label: t3.xlarge
           value: t3.xlarge
         - label: t3.2xlarge
           value: t3.2xlarge
+        - label: c6i.large
+          value: c6i.large
+        - label: c6i.xlarge
+          value: c6i.xlarge
+        - label: c6i.2xlarge
+          value: c6i.2xlarge
     - type: string-input
       label: 👤 Issuer Email
       required: true
@@ -381,12 +412,170 @@ tabs:
       required: true
       placeholder: my-cluster
       variable: cluster_name
+    - type: select
+      label: EKS control plane version
+      variable: cluster_version
+      settings:
+        default: "1.20"
+        options:
+        - label: "1.20"
+          value: "1.20"
+        - label: "1.21"
+          value: "1.21"
+        - label: "1.22"
+          value: "1.22"
+    - type: number-input
+      label: Minimum number of EC2 instances to create in the application autoscaling group.
+      variable: min_instances
+      placeholder: "ex: 1"
+      settings:
+        default: 1
     - type: number-input
       label: Maximum number of EC2 instances to create in the application autoscaling group.
       variable: max_instances
       placeholder: "ex: 10"
       settings:
         default: 10
+- name: additional_nodegroup
+  label: Additional Node Groups
+  sections:
+  - name: is_additional_enabled
+    contents:
+    - type: heading
+      label: Additional Node Groups
+    - type: checkbox
+      variable: additional_nodegroup_enabled
+      label: Enable an additional node group for this cluster.
+      settings:
+        default: false
+  - name: additional_settings
+    show_if: additional_nodegroup_enabled
+    contents:
+    - type: string-input
+      label: Label for this node group.
+      variable: additional_nodegroup_label
+      placeholder: "ex: porter.run/workload-kind=job"
+      settings:
+        default: porter.run/workload-kind=database
+    - type: string-input
+      label: Taint for this node group.
+      variable: additional_nodegroup_taint
+      placeholder: "ex: porter.run/workload-kind=job:NoSchedule"
+      settings:
+        default: porter.run/workload-kind=database:NoSchedule
+    - type: checkbox
+      variable: additional_stateful_nodegroup_enabled
+      label: Stateful Workload
+      settings:
+        default: false
+    - type: select
+      label: ⚙️ AWS System Machine Type
+      variable: additional_nodegroup_machine_type
+      settings:
+        default: t2.medium
+        options:
+        - label: t2.medium
+          value: t2.medium
+        - label: t2.large
+          value: t2.large
+        - label: t2.xlarge
+          value: t2.xlarge
+        - label: t2.2xlarge
+          value: t2.2xlarge
+        - label: t3.medium
+          value: t3.medium
+        - label: t3.large
+          value: t3.large
+        - label: t3.xlarge
+          value: t3.xlarge
+        - label: t3.2xlarge
+          value: t3.2xlarge
+        - label: c6i.2xlarge
+          value: c6i.2xlarge
+    - type: number-input
+      label: Minimum number of EC2 instances to create in the application autoscaling group.
+      variable: additional_nodegroup_min_instances
+      placeholder: "ex: 1"
+      settings:
+        default: 1
+    - type: number-input
+      label: Maximum number of EC2 instances to create in the application autoscaling group.
+      variable: additional_nodegroup_max_instances
+      placeholder: "ex: 10"
+      settings:
+        default: 10
+- name: iam
+  label: IAM
+  sections:
+  - name: toggle_aws_auth
+    contents:
+    - type: heading
+      label: Configure IAM Access
+    - type: checkbox
+      variable: manage_aws_auth_configmap
+      label: Allow Porter to manage AWS authentication for the cluster.
+      settings:
+        default: true
+  - name: aws_auth_warning
+    show_if:
+      not: manage_aws_auth_configmap
+    contents:
+    - type: subtitle
+      label: "WARNING - turning this value off will result in the aws-auth configmap getting removed from the cluster, and will take existing AWS nodes offline until the configmap is re-added with the node's IAM role ARN. Make sure you know what you are doing."
+  - name: arns
+    show_if: manage_aws_auth_configmap
+    contents:
+    - type: heading
+      label: Users
+    - type: subtitle
+      label: "Add AWS users to the cluster. The left input should be a valid AWS user ARN, and the right side should be a group on the cluster. For example, arn:aws:iam::66666666666:user/user1: system:masters."
+    - type: key-value-array
+      variable: aws_auth_users
+      settings:
+        default: {}
+    - type: heading
+      label: Roles
+    - type: subtitle
+      label: "Add AWS roles to the cluster. The left input should be a valid AWS role ARN, and the right side should be a group on the cluster. For example, arn:aws:iam::66666666666:role/role1: system:masters."
+    - type: key-value-array
+      variable: aws_auth_roles
+      settings:
+        default: {}
+- name: advanced
+  label: Advanced
+  sections:
+  - name: system_machine_type
+    contents:
+    - type: heading
+      label: System Machine Type Settings
+    - type: select
+      label: ⚙️ AWS System Machine Type
+      variable: system_machine_type
+      settings:
+        default: t2.medium
+        options:
+        - label: t2.medium
+          value: t2.medium
+        - label: t2.large
+          value: t2.large
+        - label: t2.xlarge
+          value: t2.xlarge
+        - label: t2.2xlarge
+          value: t2.2xlarge
+        - label: t3.medium
+          value: t3.medium
+        - label: t3.large
+          value: t3.large
+        - label: t3.xlarge
+          value: t3.xlarge
+        - label: t3.2xlarge
+          value: t3.2xlarge
+        - label: c6i.2xlarge
+          value: c6i.2xlarge
+  - name: spot_instance_should_enable
+    contents:
+    - type: heading
+      label: Spot Instance Settings
     - type: checkbox
       variable: spot_instances_enabled
       label: Enable spot instances for this cluster.
@@ -399,6 +588,47 @@ tabs:
       label: Assign a bid price for the spot instance (optional).
       variable: spot_price
       placeholder: "ex: 0.05"
+  - name: net_settings
+    contents:
+    - type: heading
+      label: Networking Settings
+    - type: string-input
+      label: "Add a different CIDR range prefix (first two octets: for example 10.99 will create a VPC with CIDR range 10.99.0.0/16)."
+      variable: cluster_vpc_cidr_octets
+      placeholder: "ex: 10.99"
+      settings:
+        default: "10.99"
+    - type: checkbox
+      label: "Add additional private subnets to the cluster in each AZ."
+      variable: additional_private_subnets
+      settings:
+        default: false
+  - name: subnet_multiplicity
+    show_if: additional_private_subnets
+    contents:
+    - type: number-input
+      label: "Multiplicity of the subnet within each AZ."
+      variable: additional_private_subnets_multiplicity
+      settings:
+        default: 3
+  - name: nginx_settings
+    contents:
+    - type: heading
+      label: NGINX Settings
+    - type: checkbox
+      variable: disable_nginx_load_balancer
+      label: Disable NGINX load balancer and expose NGINX only on a cluster IP address.
+      settings:
+        default: false
+  - name: prometheus_settings
+    contents:
+    - type: heading
+      label: Prometheus Settings
+    - type: checkbox
+      variable: additional_prometheus_node_group
+      label: Add an additional prometheus node group to ensure monitoring stability.
+      settings:
+        default: false
 `
 
 const gcrForm = `name: GCR
@@ -409,7 +639,7 @@ tabs:
   label: Configuration
   sections:
   - name: section_one
-    contents: 
+    contents:
     - type: heading
       label: GCR Configuration
     - type: select
@@ -430,12 +660,18 @@ tabs:
           value: asia-northeast3
         - label: asia-south1
           value: asia-south1
+        - label: asia-south2
+          value: asia-south2
         - label: asia-southeast1
           value: asia-southeast1
         - label: asia-southeast2
           value: asia-southeast2
         - label: australia-southeast1
           value: australia-southeast1
+        - label: australia-southeast2
+          value: australia-southeast2
+        - label: europe-central2
+          value: europe-central2
         - label: europe-north1
           value: europe-north1
         - label: europe-west1
@@ -448,28 +684,131 @@ tabs:
           value: europe-west4
         - label: europe-west6
           value: europe-west6
+        - label: europe-west8
+          value: europe-west8
+        - label: europe-west9
+          value: europe-west9
+        - label: europe-southwest1
+          value: europe-southwest1
         - label: northamerica-northeast1
           value: northamerica-northeast1
+        - label: northamerica-northeast2
+          value: northamerica-northeast2
         - label: southamerica-east1
           value: southamerica-east1
+        - label: southamerica-west1
+          value: southamerica-west1
         - label: us-central1
           value: us-central1
         - label: us-east1
           value: us-east1
         - label: us-east4
           value: us-east4
-        - label: us-east1
-          value: us-east1
-        - label: us-east1
-          value: us-east1
+        - label: us-east5
+          value: us-east5
+        - label: us-south1
+          value: us-south1
         - label: us-west1
           value: us-west1
-        - label: us-east1
+        - label: us-west2
           value: us-west2
         - label: us-west3
           value: us-west3
         - label: us-west4
           value: us-west4
+`
+
+const garForm = `name: GAR
+hasSource: false
+includeHiddenFields: true
+tabs:
+- name: main
+  label: Configuration
+  sections:
+  - name: section_one
+    contents:
+    - type: heading
+      label: GAR Configuration
+    - type: select
+      label: 📍 GCP Region
+      variable: gcp_region
+      settings:
+        default: us-central1
+        options:
+        - label: asia-east1
+          value: asia-east1
+        - label: asia-east2
+          value: asia-east2
+        - label: asia-northeast1
+          value: asia-northeast1
+        - label: asia-northeast2
+          value: asia-northeast2
+        - label: asia-northeast3
+          value: asia-northeast3
+        - label: asia-south1
+          value: asia-south1
+        - label: asia-south2
+          value: asia-south2
+        - label: asia-southeast1
+          value: asia-southeast1
+        - label: asia-southeast2
+          value: asia-southeast2
+        - label: australia-southeast1
+          value: australia-southeast1
+        - label: australia-southeast2
+          value: australia-southeast2
+        - label: europe-central2
+          value: europe-central2
+        - label: europe-north1
+          value: europe-north1
+        - label: europe-west1
+          value: europe-west1
+        - label: europe-west2
+          value: europe-west2
+        - label: europe-west3
+          value: europe-west3
+        - label: europe-west4
+          value: europe-west4
+        - label: europe-west6
+          value: europe-west6
+        - label: europe-west8
+          value: europe-west8
+        - label: europe-west9
+          value: europe-west9
+        - label: europe-southwest1
+          value: europe-southwest1
+        - label: northamerica-northeast1
+          value: northamerica-northeast1
+        - label: northamerica-northeast2
+          value: northamerica-northeast2
+        - label: southamerica-east1
+          value: southamerica-east1
+        - label: southamerica-west1
+          value: southamerica-west1
+        - label: us-central1
+          value: us-central1
+        - label: us-east1
+          value: us-east1
+        - label: us-east4
+          value: us-east4
+        - label: us-east5
+          value: us-east5
+        - label: us-south1
+          value: us-south1
+        - label: us-west1
+          value: us-west1
+        - label: us-west2
+          value: us-west2
+        - label: us-west3
+          value: us-west3
+        - label: us-west4
+          value: us-west4
+        - label: us (multi-region)
+          value: us
+        - label: europe (multi-region)
+          value: europe
+        - label: asia (multi-region)
+          value: asia
 `
 
 const gkeForm = `name: GKE
@@ -480,7 +819,7 @@ tabs:
   label: Configuration
   sections:
   - name: section_one
-    contents: 
+    contents:
     - type: heading
       label: GKE Configuration
     - type: select
@@ -501,12 +840,18 @@ tabs:
           value: asia-northeast3
         - label: asia-south1
           value: asia-south1
+        - label: asia-south2
+          value: asia-south2
         - label: asia-southeast1
           value: asia-southeast1
         - label: asia-southeast2
           value: asia-southeast2
         - label: australia-southeast1
           value: australia-southeast1
+        - label: australia-southeast2
+          value: australia-southeast2
+        - label: europe-central2
+          value: europe-central2
         - label: europe-north1
           value: europe-north1
         - label: europe-west1
@@ -519,23 +864,33 @@ tabs:
           value: europe-west4
         - label: europe-west6
           value: europe-west6
+        - label: europe-west8
+          value: europe-west8
+        - label: europe-west9
+          value: europe-west9
+        - label: europe-southwest1
+          value: europe-southwest1
         - label: northamerica-northeast1
           value: northamerica-northeast1
+        - label: northamerica-northeast2
+          value: northamerica-northeast2
         - label: southamerica-east1
           value: southamerica-east1
+        - label: southamerica-west1
+          value: southamerica-west1
         - label: us-central1
           value: us-central1
         - label: us-east1
           value: us-east1
         - label: us-east4
           value: us-east4
-        - label: us-east1
-          value: us-east1
-        - label: us-east1
-          value: us-east1
+        - label: us-east5
+          value: us-east5
+        - label: us-south1
+          value: us-south1
         - label: us-west1
           value: us-west1
-        - label: us-east1
+        - label: us-west2
           value: us-west2
         - label: us-west3
           value: us-west3
@@ -561,7 +916,7 @@ tabs:
   label: Configuration
   sections:
   - name: section_one
-    contents: 
+    contents:
     - type: heading
       label: DOCR Configuration
     - type: select
@@ -589,7 +944,7 @@ tabs:
   label: Configuration
   sections:
   - name: section_one
-    contents: 
+    contents:
     - type: heading
       label: DOKS Configuration
     - type: select
@@ -625,6 +980,93 @@ tabs:
       variable: issuer_email
     - type: string-input
       label: DOKS Cluster Name
+      required: true
+      placeholder: my-cluster
+      variable: cluster_name
+`
+
+const acrForm = `name: ACR
+hasSource: false
+includeHiddenFields: true
+isClusterScoped: false
+tabs:
+- name: main
+  label: Configuration
+  sections:
+  - name: section_one
+    contents:
+    - type: heading
+      label: ACR Configuration
+    - type: select
+      label: 📍 Azure Region
+      variable: aks_region
+      settings:
+        default: East US
+        options:
+        - label: East US
+          value: East US
+        - label: East US 2
+          value: East US 2
+        - label: West US 2
+          value: West US 2
+        - label: West US 3
+          value: West US 3
+        - label: Norway East
+          value: Norway East
+    - type: string-input
+      label: ACR Name
+      required: true
+      placeholder: my-registry
+      variable: acr_name
+`
+
+const aksForm = `name: AKS
+hasSource: false
+includeHiddenFields: true
+isClusterScoped: false
+tabs:
+- name: main
+  label: Configuration
+  sections:
+  - name: section_one
+    contents:
+    - type: heading
+      label: AKS Configuration
+    - type: select
+      label: 📍 Azure Region
+      variable: aks_region
+      settings:
+        default: East US
+        options:
+        - label: East US
+          value: East US
+        - label: East US 2
+          value: East US 2
+        - label: West US 2
+          value: West US 2
+        - label: West US 3
+          value: West US 3
+        - label: Norway East
+          value: Norway East
+    - type: select
+      label: ⚙️ Application Machine Type
+      variable: app_machine_type
+      settings:
+        default: Standard_A2_v2
+        options:
+        - label: Standard A2
+          value: Standard_A2_v2
+        - label: Standard A4
+          value: Standard_A4_v2
+        - label: Standard D2
+          value: Standard_D2_v3
+    - type: string-input
+      label: 👤 Issuer Email
+      required: true
+      placeholder: example@example.com
+      variable: issuer_email
+    - type: string-input
+      label: AKS Cluster Name
       required: true
       placeholder: my-cluster
       variable: cluster_name

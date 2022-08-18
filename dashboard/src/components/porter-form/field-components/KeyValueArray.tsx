@@ -1,8 +1,10 @@
 import React, { useContext, useEffect, useState } from "react";
 import {
   GetFinalVariablesFunction,
+  GetMetadataFunction,
   KeyValueArrayField,
   KeyValueArrayFieldState,
+  PartialEnvGroup,
   PopulatedEnvGroup,
 } from "../types";
 import sliders from "../../../assets/sliders.svg";
@@ -13,12 +15,13 @@ import Modal from "../../../main/home/modals/Modal";
 import LoadEnvGroupModal from "../../../main/home/modals/LoadEnvGroupModal";
 import EnvEditorModal from "../../../main/home/modals/EnvEditorModal";
 import { hasSetValue } from "../utils";
-import _, { omit } from "lodash";
+import _, { isObject, differenceBy, omit } from "lodash";
 import Helper from "components/form-components/Helper";
 import Heading from "components/form-components/Heading";
 import Loading from "components/Loading";
 import api from "shared/api";
 import { Context } from "shared/Context";
+import { dotenv_parse } from "shared/string_utils";
 
 interface Props extends KeyValueArrayField {
   id: string;
@@ -61,7 +64,27 @@ const KeyValueArray: React.FC<Props> = (props) => {
     if (hasSetValue(props) && !Array.isArray(state?.synced_env_groups)) {
       const values = props.value[0];
       // console.log(values);
-      const envGroups = values?.synced || [];
+      const envGroups: PartialEnvGroup[] = values?.synced || [];
+
+      if (Array.isArray(props.injectedProps?.availableSyncEnvGroups)) {
+        const availableEnvGroups = props.injectedProps.availableSyncEnvGroups;
+
+        const populatedEnvGroups = envGroups
+          .map((envGroup) => {
+            return availableEnvGroups.find(
+              (availableEnvGroup) => availableEnvGroup.name === envGroup.name
+            );
+          })
+          .filter(Boolean);
+
+        setState(() => ({
+          synced_env_groups: Array.isArray(populatedEnvGroups)
+            ? populatedEnvGroups
+            : [],
+        }));
+        return;
+      }
+
       const promises = Promise.all(
         envGroups.map(async (envGroup: any) => {
           const res = await api.getEnvGroup(
@@ -88,6 +111,7 @@ const KeyValueArray: React.FC<Props> = (props) => {
       });
     }
   }, [
+    props.injectedProps,
     props.value[0],
     variables?.clusterId,
     variables?.namespace,
@@ -101,51 +125,7 @@ const KeyValueArray: React.FC<Props> = (props) => {
   }
 
   const parseEnv = (src: any, options: any) => {
-    const debug = Boolean(options && options.debug);
-    const obj = {} as Record<string, string>;
-    const NEWLINE = "\n";
-    const RE_INI_KEY_VAL = /^\s*([\w.-]+)\s*=\s*(.*)?\s*$/;
-    const RE_NEWLINES = /\\n/g;
-    const NEWLINES_MATCH = /\n|\r|\r\n/;
-
-    // convert Buffers before splitting into lines and processing
-    src
-      .toString()
-      .split(NEWLINES_MATCH)
-      .forEach(function (line: any, idx: any) {
-        // matching "KEY' and 'VAL' in 'KEY=VAL'
-        const keyValueArr = line.match(RE_INI_KEY_VAL);
-        // matched?
-        if (keyValueArr != null) {
-          const key = keyValueArr[1];
-          // default undefined or missing values to empty string
-          let val = keyValueArr[2] || "";
-          const end = val.length - 1;
-          const isDoubleQuoted = val[0] === '"' && val[end] === '"';
-          const isSingleQuoted = val[0] === "'" && val[end] === "'";
-
-          // if single or double quoted, remove quotes
-          if (isSingleQuoted || isDoubleQuoted) {
-            val = val.substring(1, end);
-
-            // if double quoted, expand newlines
-            if (isDoubleQuoted) {
-              val = val.replace(RE_NEWLINES, NEWLINE);
-            }
-          } else {
-            // remove surrounding whitespace
-            val = val.trim();
-          }
-
-          obj[key] = val;
-        } else if (debug) {
-          console.log(
-            `did not match key and value when parsing line ${idx + 1}: ${line}`
-          );
-        }
-      });
-
-    return obj;
+    return dotenv_parse(src);
   };
 
   const readFile = (env: string) => {
@@ -222,6 +202,7 @@ const KeyValueArray: React.FC<Props> = (props) => {
             existingValues={getProcessedValues(state.values)}
             enableSyncedEnvGroups={enableSyncedEnvGroups}
             syncedEnvGroups={state.synced_env_groups}
+            availableEnvGroups={props.injectedProps?.availableSyncEnvGroups}
             namespace={variables.namespace}
             clusterId={variables.clusterId}
             closeModal={() =>
@@ -332,7 +313,7 @@ const KeyValueArray: React.FC<Props> = (props) => {
 
           return (
             <InputWrapper key={i}>
-              <Input
+              <KeyInput
                 placeholder="ex: key"
                 width="270px"
                 value={entry.key}
@@ -359,30 +340,41 @@ const KeyValueArray: React.FC<Props> = (props) => {
                 }
               />
               <Spacer />
-              <Input
-                placeholder="ex: value"
-                width="270px"
-                value={value}
-                onChange={(e: any) => {
-                  e.persist();
-                  setState((prev) => {
-                    return {
-                      values: prev.values?.map((t, j) => {
-                        if (j == i) {
-                          return {
-                            ...t,
-                            value: e.target.value,
-                          };
-                        }
-                        return t;
-                      }),
-                    };
-                  });
-                }}
-                disabled={props.isReadOnly || value.includes("PORTERSECRET")}
-                type={value.includes("PORTERSECRET") ? "password" : "text"}
-                spellCheck={false}
-              />
+              {value?.includes("PORTERSECRET") ? (
+                <KeyInput
+                  placeholder="ex: value"
+                  width="270px"
+                  disabled
+                  type={"password"}
+                  spellCheck={false}
+                  value={value}
+                />
+              ) : (
+                <MultiLineInput
+                  placeholder="ex: value"
+                  width="270px"
+                  value={value}
+                  onChange={(e: any) => {
+                    e.persist();
+                    setState((prev) => {
+                      return {
+                        values: prev.values?.map((t, j) => {
+                          if (j == i) {
+                            return {
+                              ...t,
+                              value: e.target.value,
+                            };
+                          }
+                          return t;
+                        }),
+                      };
+                    });
+                  }}
+                  disabled={props.isReadOnly}
+                  spellCheck={false}
+                  rows={value?.split("\n").length}
+                />
+              )}
               {renderDeleteButton(i)}
               {renderHiddenOption(value.includes("PORTERSECRET"), i)}
               {checkOverridedKey(entry.key)}
@@ -485,24 +477,27 @@ export const getFinalVariablesForKeyValueArray: GetFinalVariablesFunction = (
     };
   }
 
+  const isNumber = (s: string) => {
+    return !isNaN(!s ? NaN : Number(String(s).trim()));
+  };
+
+  const rg = /(?:^|[^\\])(\\n)/g;
+  const fixNewlines = (s: string) => {
+    while (rg.test(s)) {
+      s = s.replace(rg, (str) => {
+        if (str.length == 2) return "\n";
+        if (str[0] != "\\") return str[0] + "\n";
+        return "\\n";
+      });
+    }
+    return s;
+  };
+
   if (props.variable.includes("env")) {
     let obj = {
       normal: {},
     } as any;
-    const rg = /(?:^|[^\\])(\\n)/g;
-    const fixNewlines = (s: string) => {
-      while (rg.test(s)) {
-        s = s.replace(rg, (str) => {
-          if (str.length == 2) return "\n";
-          if (str[0] != "\\") return str[0] + "\n";
-          return "\\n";
-        });
-      }
-      return s;
-    };
-    const isNumber = (s: string) => {
-      return !isNaN(!s ? NaN : Number(String(s).trim()));
-    };
+
     state.values.forEach((entry: any, i: number) => {
       if (isNumber(entry.value)) {
         obj.normal[entry.key] = entry.value;
@@ -538,20 +533,7 @@ export const getFinalVariablesForKeyValueArray: GetFinalVariablesFunction = (
     };
   } else {
     let obj = {} as any;
-    const rg = /(?:^|[^\\])(\\n)/g;
-    const fixNewlines = (s: string) => {
-      while (rg.test(s)) {
-        s = s.replace(rg, (str) => {
-          if (str.length == 2) return "\n";
-          if (str[0] != "\\") return str[0] + "\n";
-          return "\\n";
-        });
-      }
-      return s;
-    };
-    const isNumber = (s: string) => {
-      return !isNaN(!s ? NaN : Number(String(s).trim()));
-    };
+
     state.values.forEach((entry: any, i: number) => {
       if (isNumber(entry.value)) {
         obj[entry.key] = entry.value;
@@ -563,6 +545,51 @@ export const getFinalVariablesForKeyValueArray: GetFinalVariablesFunction = (
       [props.variable]: obj,
     };
   }
+};
+
+type KeyValueArrayMetadata = {
+  [variable: string]: {
+    added: { name: string }[];
+    deleted: { name: string }[];
+  };
+};
+
+export const getMetadata: GetMetadataFunction<KeyValueArrayMetadata> = (
+  vars,
+  props: KeyValueArrayField,
+  state: KeyValueArrayFieldState
+) => {
+  // We don't need any metadata for other key-value-array fields yet so we return null for that variable
+  if (!state || !props?.variable?.includes("env")) {
+    return {
+      [props.variable]: null,
+    };
+  }
+
+  const originalSyncedEnvGroups: { name: string }[] =
+    props.value[0]?.synced || [];
+  const currSynced = state?.synced_env_groups || [];
+
+  let obj: KeyValueArrayMetadata[""] = {
+    added: [],
+    deleted: [],
+  };
+
+  obj.added = differenceBy(currSynced, originalSyncedEnvGroups, "name");
+  obj.deleted = differenceBy(originalSyncedEnvGroups, currSynced, "name");
+
+  // This will assure that the variable is always "container.env" and not "container.env.normal" as it is
+  // for some old versions of the jobs chart.
+  const variableContent = props.variable.split(".");
+  let variable = props.variable;
+
+  if (variable.includes("normal")) {
+    variable = `${variableContent[0]}.${variableContent[1]}`;
+  }
+
+  return {
+    [variable]: obj,
+  };
 };
 
 export default KeyValueArray;
@@ -595,37 +622,59 @@ const ExpandableEnvGroup: React.FC<{
         {isExpanded && (
           <>
             <Buffer />
-            {Object.entries(envGroup.variables || {})?.map(
-              ([key, value], i: number) => {
-                // Preprocess non-string env values set via raw Helm values
-                if (typeof value === "object") {
-                  value = JSON.stringify(value);
-                } else {
-                  value = String(value);
-                }
+            {isObject(envGroup.variables) ? (
+              <>
+                {Object.entries(envGroup.variables || {})?.map(
+                  ([key, value], i: number) => {
+                    // Preprocess non-string env values set via raw Helm values
+                    if (typeof value === "object") {
+                      value = JSON.stringify(value);
+                    } else {
+                      value = String(value);
+                    }
 
-                return (
-                  <InputWrapper key={i}>
-                    <Input
-                      placeholder="ex: key"
-                      width="270px"
-                      value={key}
-                      disabled
-                    />
-                    <Spacer />
-                    <Input
-                      placeholder="ex: value"
-                      width="270px"
-                      value={value}
-                      disabled
-                      type={
-                        value.includes("PORTERSECRET") ? "password" : "text"
-                      }
-                    />
-                  </InputWrapper>
-                );
-              }
+                    return (
+                      <InputWrapper key={i}>
+                        <KeyInput
+                          placeholder="ex: key"
+                          width="270px"
+                          value={key}
+                          disabled
+                        />
+                        <Spacer />
+                        {value?.includes("PORTERSECRET") ? (
+                          <KeyInput
+                            placeholder="ex: value"
+                            width="270px"
+                            value={value}
+                            disabled
+                            type={
+                              value.includes("PORTERSECRET")
+                                ? "password"
+                                : "text"
+                            }
+                          />
+                        ) : (
+                          <MultiLineInput
+                            placeholder="ex: value"
+                            width="270px"
+                            value={value}
+                            disabled
+                            rows={value?.split("\n").length}
+                            spellCheck={false}
+                          ></MultiLineInput>
+                        )}
+                      </InputWrapper>
+                    );
+                  }
+                )}
+              </>
+            ) : (
+              <NoVariablesTextWrapper>
+                This env group has no variables yet
+              </NoVariablesTextWrapper>
             )}
+
             <Br />
           </>
         )}
@@ -767,7 +816,7 @@ type InputProps = {
   borderColor?: string;
 };
 
-const Input = styled.input<InputProps>`
+const KeyInput = styled.input<InputProps>`
   outline: none;
   border: none;
   margin-bottom: 5px;
@@ -780,6 +829,48 @@ const Input = styled.input<InputProps>`
   color: ${(props) => (props.disabled ? "#ffffff44" : "white")};
   padding: 5px 10px;
   height: 35px;
+`;
+
+export const MultiLineInput = styled.textarea<InputProps>`
+  outline: none;
+  border: none;
+  margin-bottom: 5px;
+  font-size: 13px;
+  background: #ffffff11;
+  border: 1px solid
+    ${(props) => (props.borderColor ? props.borderColor : "#ffffff55")};
+  border-radius: 3px;
+  min-width: ${(props) => (props.width ? props.width : "270px")};
+  max-width: ${(props) => (props.width ? props.width : "270px")};
+  color: ${(props) => (props.disabled ? "#ffffff44" : "white")};
+  padding: 8px 10px 5px 10px;
+  min-height: 35px;
+  max-height: 100px;
+  white-space: nowrap;
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    :horizontal {
+      height: 8px;
+    }
+  }
+
+  ::-webkit-scrollbar-corner {
+    width: 10px;
+    background: #ffffff11;
+    color: white;
+  }
+
+  ::-webkit-scrollbar-track {
+    width: 10px;
+    -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: darkgrey;
+    outline: 1px solid slategrey;
+  }
 `;
 
 const Label = styled.div`
@@ -872,4 +963,11 @@ const ActionButton = styled.button`
   > span {
     font-size: 20px;
   }
+`;
+
+const NoVariablesTextWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff99;
 `;

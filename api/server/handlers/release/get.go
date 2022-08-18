@@ -63,6 +63,31 @@ func (c *ReleaseGetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			res.BuildConfig = bc.ToBuildConfigType()
 		}
+
+		if release.StackResourceID != 0 {
+			stackResource, err := c.Repo().Stack().ReadStackResource(release.StackResourceID)
+
+			if err != nil {
+				c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+				return
+			}
+
+			stackRevision, err := c.Repo().Stack().ReadStackRevision(stackResource.StackRevisionID)
+
+			if err != nil {
+				c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+				return
+			}
+
+			stack, err := c.Repo().Stack().ReadStackByID(cluster.ProjectID, stackRevision.StackID)
+
+			if err != nil {
+				c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
+				return
+			}
+
+			res.StackID = stack.UID
+		}
 	} else if err != gorm.ErrRecordNotFound {
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
 		return
@@ -128,6 +153,12 @@ func (c *ReleaseGetHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if err == nil {
 				res.Form = formYAML
 			}
+		} else if res.Release.Chart.Name() == "velero" {
+			formYAML, err := parser.FormYAMLFromBytes(parserDef, []byte(veleroForm), "", "")
+
+			if err == nil {
+				res.Form = formYAML
+			}
 		}
 	}
 
@@ -183,4 +214,39 @@ tabs:
           timestamp: .status.conditions[0].lastTransitionTime,
           message: [.status.conditions[].message] | unique | join(","),
           data: {}
+        }`
+
+const veleroForm string = `tags:
+- hello
+tabs:
+- name: main
+  context:
+    type: cluster
+    config:
+      group: velero.io
+      version: v1
+      resource: backups
+  label: Backups
+  sections:
+  - name: section_one
+    contents: 
+    - type: heading
+      label: 💾 Velero Backups
+    - type: resource-list
+      value: |
+        .items[] | { 
+          name: .metadata.name, 
+          label: .metadata.namespace,
+          status: .status.phase,
+          timestamp: .status.completionTimestamp,
+          message: [
+            (if .status.volumeSnapshotsAttempted then "\(.status.volumeSnapshotsAttempted) volume snapshots attempted, \(.status.volumeSnapshotsCompleted) completed." else null end),
+            "Finished \(.status.completionTimestamp).",
+            "Backup expires on \(.status.expiration)."
+          ]|join(" "),
+          data: {
+            "Included Namespaces": (if .spec.includedNamespaces then .spec.includedNamespaces|join(",") else "* (all)" end),
+            "Included Resources": (if .spec.includedResources then .spec.includedResources|join(",") else "* (all)" end),
+            "Storage Location": .spec.storageLocation
+          }
         }`

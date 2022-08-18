@@ -1,9 +1,9 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, { useContext, useMemo, useState } from "react";
 import styled from "styled-components";
 import yaml from "js-yaml";
 
 import backArrow from "assets/back_arrow.png";
-import { merge, set } from "lodash";
+import { cloneDeep, set } from "lodash";
 import loading from "assets/loading.gif";
 
 import { ChartType, ClusterType } from "shared/types";
@@ -22,12 +22,12 @@ import useAuth from "shared/auth/useAuth";
 import ExpandedJobRun from "./jobs/ExpandedJobRun";
 import { useJobs } from "./jobs/useJobs";
 import { useChart } from "shared/hooks/useChart";
-import Modal from "main/home/modals/Modal";
 import ConnectToJobInstructionsModal from "./jobs/ConnectToJobInstructionsModal";
 import CommandLineIcon from "assets/command-line-icon";
 import CronParser from "cron-parser";
 import CronPrettifier from "cronstrue";
-import BuildSettingsTab from "./BuildSettingsTab";
+import BuildSettingsTab from "./build-settings/BuildSettingsTab";
+import { useStackEnvGroups } from "./useStackEnvGroups";
 
 const readableDate = (s: string) => {
   let ts = new Date(s);
@@ -69,6 +69,12 @@ export const ExpandedJobChartFC: React.FC<{
     setSelectedJob,
   } = useJobs(chart);
 
+  const {
+    isStack,
+    stackEnvGroups,
+    isLoadingStackEnvGroups,
+  } = useStackEnvGroups(chart);
+
   const [devOpsMode, setDevOpsMode] = useState(
     () => localStorage.getItem("devOpsMode") === "true"
   );
@@ -94,10 +100,11 @@ export const ExpandedJobChartFC: React.FC<{
 
   const leftTabOptions = [{ label: "Jobs", value: "jobs" }];
 
-  const processValuesToUpdateChart = (newConfig?: any) => (
-    currentChart: ChartType
-  ) => {
-    // return "";
+  const processValuesToUpdateChart = (props?: {
+    values: any;
+    metadata: any;
+  }) => (currentChart: ChartType) => {
+    const newConfig = props.values;
     let conf: string;
     let values = currentChart.config;
 
@@ -117,7 +124,7 @@ export const ExpandedJobChartFC: React.FC<{
       conf = yaml.dump(values, { forceQuotes: true });
     }
 
-    return conf;
+    return { yaml: conf, metadata: props.metadata };
   };
 
   const handleDeleteChart = async () => {
@@ -230,8 +237,8 @@ export const ExpandedJobChartFC: React.FC<{
                 }}
                 isDeployedFromGithub={!!chart?.git_action_config?.git_repo}
                 repositoryUrl={chart?.git_action_config?.git_repo}
-                currentChartVersion={Number(chart.version)}
-                latestChartVersion={Number(chart.latest_version)}
+                currentChartVersion={Number(chart?.version)}
+                latestChartVersion={Number(chart?.latest_version)}
               />
             </>
           )}
@@ -250,7 +257,13 @@ export const ExpandedJobChartFC: React.FC<{
     }
 
     if (currentTab === "build-settings") {
-      return <BuildSettingsTab chart={chart} />;
+      return (
+        <BuildSettingsTab
+          chart={chart}
+          isPreviousVersion={disableForm}
+          onSave={refreshChart}
+        />
+      );
     }
 
     if (
@@ -264,7 +277,7 @@ export const ExpandedJobChartFC: React.FC<{
           setShowDeleteOverlay={(showOverlay: boolean) => {
             if (showOverlay) {
               setCurrentOverlay({
-                message: `Are you sure you want to delete ${chart.name}?`,
+                message: `Are you sure you want to delete ${chart?.name}?`,
                 onYes: handleDeleteChart,
                 onNo: () => setCurrentOverlay(null),
               });
@@ -280,7 +293,9 @@ export const ExpandedJobChartFC: React.FC<{
     return null;
   };
 
-  if (status === "loading") {
+  const formData = useMemo(() => cloneDeep(chart?.form || {}), [chart]);
+
+  if (status === "loading" || isLoadingStackEnvGroups) {
     return <Loading />;
   }
 
@@ -290,6 +305,7 @@ export const ExpandedJobChartFC: React.FC<{
         <ExpandedJobHeader
           chart={chart}
           jobs={jobs}
+          disableRevisions
           closeChart={closeChart}
           refreshChart={refreshChart}
           upgradeChart={upgradeChart}
@@ -300,7 +316,7 @@ export const ExpandedJobChartFC: React.FC<{
         <Placeholder>
           <TextWrap>
             <Header>
-              <Spinner src={loading} /> Deleting "{chart.name}"
+              <Spinner src={loading} /> Deleting "{chart?.name}"
             </Header>
             You will be automatically redirected after deletion is complete.
           </TextWrap>
@@ -318,8 +334,6 @@ export const ExpandedJobChartFC: React.FC<{
       />
     );
   }
-
-  const formData = { ...chart.form };
 
   return (
     <>
@@ -345,7 +359,7 @@ export const ExpandedJobChartFC: React.FC<{
             <PorterFormWrapper
               formData={formData}
               valuesToOverride={{
-                namespace: chart.namespace,
+                namespace: chart?.namespace,
                 clusterId: currentCluster?.id,
               }}
               renderTabContents={renderTabContents}
@@ -357,6 +371,7 @@ export const ExpandedJobChartFC: React.FC<{
               onSubmit={(formValues) =>
                 updateChart(processValuesToUpdateChart(formValues))
               }
+              includeMetadata
               leftTabOptions={leftTabOptions}
               rightTabOptions={rightTabOptions}
               saveValuesStatus={saveStatus}
@@ -375,6 +390,15 @@ export const ExpandedJobChartFC: React.FC<{
                   <i className="material-icons">offline_bolt</i> DevOps Mode
                 </TabButton>
               }
+              injectedProps={{
+                "key-value-array": {
+                  availableSyncEnvGroups:
+                    isStack && !disableForm ? stackEnvGroups : undefined,
+                },
+                "url-link": {
+                  chart: chart,
+                },
+              }}
             />
           )}
         </BodyWrapper>
@@ -391,6 +415,7 @@ const ExpandedJobHeader: React.FC<{
   upgradeChart: () => Promise<void>;
   loadChartWithSpecificRevision: (revision: number) => void;
   setDisableForm: (disable: boolean) => void;
+  disableRevisions?: boolean;
 }> = ({
   chart,
   closeChart,
@@ -399,13 +424,14 @@ const ExpandedJobHeader: React.FC<{
   upgradeChart,
   loadChartWithSpecificRevision,
   setDisableForm,
+  disableRevisions,
 }) => (
   <HeaderWrapper>
     <BackButton onClick={closeChart}>
       <BackButtonImg src={backArrow} />
     </BackButton>
-    <TitleSection icon={chart.chart.metadata.icon} iconWidth="33px">
-      {chart.name}
+    <TitleSection icon={chart?.chart.metadata.icon} iconWidth="33px">
+      {chart?.name}
       <DeploymentType currentChart={chart} />
       <TagWrapper>
         Namespace <NamespaceTag>{chart.namespace}</NamespaceTag>
@@ -421,28 +447,30 @@ const ExpandedJobHeader: React.FC<{
         {" " + readableDate(chart.info.last_deployed)}
       </LastDeployed>
     </InfoWrapper>
-    <RevisionSection
-      chart={chart}
-      refreshChart={() => refreshChart()}
-      setRevision={(chart, isCurrent) => {
-        loadChartWithSpecificRevision(chart?.version);
-        setDisableForm(!isCurrent);
-      }}
-      forceRefreshRevisions={false}
-      refreshRevisionsOff={() => {}}
-      shouldUpdate={
-        chart.latest_version &&
-        chart.latest_version !== chart.chart.metadata.version
-      }
-      latestVersion={chart.latest_version}
-      upgradeVersion={(_version, cb) => {
-        upgradeChart().then(() => {
-          if (typeof cb === "function") {
-            cb();
-          }
-        });
-      }}
-    />
+    {!disableRevisions ? (
+      <RevisionSection
+        chart={chart}
+        refreshChart={() => refreshChart()}
+        setRevision={(chart, isCurrent) => {
+          loadChartWithSpecificRevision(chart?.version);
+          setDisableForm(!isCurrent);
+        }}
+        forceRefreshRevisions={false}
+        refreshRevisionsOff={() => {}}
+        shouldUpdate={
+          chart?.latest_version &&
+          chart?.latest_version !== chart?.chart.metadata.version
+        }
+        latestVersion={chart?.latest_version}
+        upgradeVersion={(_version, cb) => {
+          upgradeChart().then(() => {
+            if (typeof cb === "function") {
+              cb();
+            }
+          });
+        }}
+      />
+    ) : null}
   </HeaderWrapper>
 );
 

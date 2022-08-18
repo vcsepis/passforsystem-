@@ -468,6 +468,7 @@ class Home extends Component<PropsType, StateType> {
                 "/env-groups",
                 "/databases",
                 "/preview-environments",
+                "/stacks",
               ]}
               render={() => {
                 let { currentCluster } = this.context;
@@ -540,6 +541,7 @@ const ViewWrapper = styled.div`
 const DashboardWrapper = styled.div`
   width: calc(85%);
   min-width: 300px;
+  height: fit-content;
 `;
 
 const StyledHome = styled.div`

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -51,10 +52,14 @@ type AuthGetter struct {
 func (a *AuthGetter) GetCredentials(serverURL string) (user string, secret string, err error) {
 	if strings.Contains(serverURL, "gcr.io") {
 		return a.GetGCRCredentials(serverURL, a.ProjectID)
+	} else if strings.Contains(serverURL, "pkg.dev") {
+		return a.GetGARCredentials(serverURL, a.ProjectID)
 	} else if strings.Contains(serverURL, "registry.digitalocean.com") {
 		return a.GetDOCRCredentials(serverURL, a.ProjectID)
 	} else if strings.Contains(serverURL, "index.docker.io") {
 		return a.GetDockerHubCredentials(serverURL, a.ProjectID)
+	} else if strings.Contains(serverURL, "azurecr.io") {
+		return a.GetACRCredentials(serverURL, a.ProjectID)
 	}
 
 	return a.GetECRCredentials(serverURL, a.ProjectID)
@@ -74,6 +79,53 @@ func (a *AuthGetter) GetGCRCredentials(serverURL string, projID uint) (user stri
 	} else {
 		// get a token from the server
 		tokenResp, err := a.Client.GetGCRAuthorizationToken(context.Background(), projID, &types.GetRegistryGCRTokenRequest{
+			ServerURL: serverURL,
+		})
+
+		if err != nil {
+			return "", "", err
+		}
+
+		token = tokenResp.Token
+
+		// set the token in cache
+		a.Cache.Set(serverURL, &AuthEntry{
+			AuthorizationToken: token,
+			RequestedAt:        time.Now(),
+			ExpiresAt:          *tokenResp.ExpiresAt,
+			ProxyEndpoint:      serverURL,
+		})
+	}
+
+	return "oauth2accesstoken", token, nil
+}
+
+func (a *AuthGetter) GetGARCredentials(serverURL string, projID uint) (user string, secret string, err error) {
+	if err != nil {
+		return "", "", err
+	}
+
+	cachedEntry := a.Cache.Get(serverURL)
+
+	if !strings.HasPrefix(serverURL, "https://") {
+		serverURL = "https://" + serverURL
+	}
+
+	parsedURL, err := url.Parse(serverURL)
+
+	if err != nil {
+		return "", "", err
+	}
+
+	serverURL = parsedURL.Host + "/" + strings.Split(parsedURL.Path, "/")[0]
+
+	var token string
+
+	if cachedEntry != nil && cachedEntry.IsValid(time.Now()) {
+		token = cachedEntry.AuthorizationToken
+	} else {
+		// get a token from the server
+		tokenResp, err := a.Client.GetGARAuthorizationToken(context.Background(), projID, &types.GetRegistryGARTokenRequest{
 			ServerURL: serverURL,
 		})
 
@@ -185,6 +237,34 @@ func (a *AuthGetter) GetDockerHubCredentials(serverURL string, projID uint) (use
 	} else {
 		// get a token from the server
 		tokenResp, err := a.Client.GetDockerhubAuthorizationToken(context.Background(), projID)
+
+		if err != nil {
+			return "", "", err
+		}
+
+		token = tokenResp.Token
+
+		// set the token in cache
+		a.Cache.Set(serverURL, &AuthEntry{
+			AuthorizationToken: token,
+			RequestedAt:        time.Now(),
+			ExpiresAt:          *tokenResp.ExpiresAt,
+			ProxyEndpoint:      serverURL,
+		})
+	}
+
+	return decodeDockerToken(token)
+}
+
+func (a *AuthGetter) GetACRCredentials(serverURL string, projID uint) (user string, secret string, err error) {
+	cachedEntry := a.Cache.Get(serverURL)
+	var token string
+
+	if cachedEntry != nil && cachedEntry.IsValid(time.Now()) {
+		token = cachedEntry.AuthorizationToken
+	} else {
+		// get a token from the server
+		tokenResp, err := a.Client.GetACRAuthorizationToken(context.Background(), projID)
 
 		if err != nil {
 			return "", "", err

@@ -8,8 +8,8 @@ import { ClusterType } from "shared/types";
 
 import Drawer from "./Drawer";
 import { RouteComponentProps, withRouter } from "react-router";
-import { pushFiltered } from "shared/routing";
-import { NavLink } from "react-router-dom";
+import { Tooltip } from "@material-ui/core";
+import SidebarLink from "./SidebarLink";
 
 type PropsType = RouteComponentProps & {
   forceCloseDrawer: boolean;
@@ -174,12 +174,14 @@ class ClusterSection extends Component<PropsType, StateType> {
 
     if (clusters.length > 0) {
       return (
-        <ClusterSelector to="/cluster-dashboard">
+        <ClusterSelector path="/cluster-dashboard">
           <LinkWrapper>
             <ClusterIcon>
               <i className="material-icons">device_hub</i>
             </ClusterIcon>
-            <ClusterName>{currentCluster && currentCluster.name}</ClusterName>
+            <Tooltip title={currentCluster?.name}>
+              <ClusterName>{currentCluster?.name}</ClusterName>
+            </Tooltip>
           </LinkWrapper>
           <DrawerButton
             onClick={(e) => {
@@ -338,7 +340,7 @@ const LinkWrapper = styled.div`
   width: 100%;
 `;
 
-const ClusterSelector = styled(NavLink)`
+const ClusterSelector = styled(SidebarLink)`
   position: relative;
   display: block;
   padding-left: 7px;

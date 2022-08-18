@@ -61,6 +61,15 @@ type AWSIntegrationRepository interface {
 	ListAWSIntegrationsByProjectID(projectID uint) ([]*ints.AWSIntegration, error)
 }
 
+// AzureIntegrationRepository represents the set of queries on the AWS auth
+// mechanism
+type AzureIntegrationRepository interface {
+	CreateAzureIntegration(az *ints.AzureIntegration) (*ints.AzureIntegration, error)
+	OverwriteAzureIntegration(az *ints.AzureIntegration) (*ints.AzureIntegration, error)
+	ReadAzureIntegration(projectID, id uint) (*ints.AzureIntegration, error)
+	ListAzureIntegrationsByProjectID(projectID uint) ([]*ints.AzureIntegration, error)
+}
+
 // GCPIntegrationRepository represents the set of queries on the GCP auth
 // mechanism
 type GCPIntegrationRepository interface {
@@ -76,4 +85,17 @@ type GithubAppInstallationRepository interface {
 	ReadGithubAppInstallationByAccountID(accountID int64) (*ints.GithubAppInstallation, error)
 	ReadGithubAppInstallationByAccountIDs(accountIDs []int64) ([]*ints.GithubAppInstallation, error)
 	DeleteGithubAppInstallationByAccountID(accountID int64) error
+}
+
+// GitlabIntegrationRepository represents the set of queries on the GitlabIntegration model
+type GitlabIntegrationRepository interface {
+	CreateGitlabIntegration(gi *ints.GitlabIntegration) (*ints.GitlabIntegration, error)
+	ReadGitlabIntegration(projectID, id uint) (*ints.GitlabIntegration, error)
+	ListGitlabIntegrationsByProjectID(projectID uint) ([]*ints.GitlabIntegration, error)
+}
+
+// GitlabAppOAuthIntegrationRepository represents the set of queries on the GitlabOAuthIntegration model
+type GitlabAppOAuthIntegrationRepository interface {
+	CreateGitlabAppOAuthIntegration(gi *ints.GitlabAppOAuthIntegration) (*ints.GitlabAppOAuthIntegration, error)
+	ReadGitlabAppOAuthIntegration(userID, projectID, integrationID uint) (*ints.GitlabAppOAuthIntegration, error)
 }

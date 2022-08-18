@@ -10,12 +10,21 @@ import Loading from "../Loading";
 
 var ecrRepoRegex = /(^[a-zA-Z0-9][a-zA-Z0-9-_]*)\.dkr\.ecr(\-fips)?\.([a-zA-Z0-9][a-zA-Z0-9-_]*)\.amazonaws\.com(\.cn)?/gim;
 
-type PropsType = {
-  setSelectedTag: (x: string) => void;
-  selectedTag: string;
-  selectedImageUrl: string;
-  registryId: number;
-};
+type PropsType =
+  | {
+      setSelectedTag: (x: string) => void;
+      selectedTag: string;
+      selectedImageUrl: string;
+      registryId: number;
+      readOnly?: boolean;
+    }
+  | {
+      setSelectedTag?: (x: string) => void;
+      selectedTag: string;
+      selectedImageUrl: string;
+      registryId: number;
+      readOnly: true;
+    };
 
 type StateType = {
   loading: boolean;
@@ -56,18 +65,22 @@ export default class TagList extends Component<PropsType, StateType> {
         }
       )
       .then((res) => {
+        let tags: any[] = res.data;
         // Sort if timestamp is available
         if (res.data.length > 0 && res.data[0].pushed_at) {
-          res.data.sort((a: any, b: any) => {
+          tags = tags.sort((a: any, b: any) => {
             let d1 = new Date(a.pushed_at);
             let d2 = new Date(b.pushed_at);
             return d2.getTime() - d1.getTime();
           });
         }
-        let tags = res.data.map((tag: any, i: number) => {
-          return tag.tag;
-        });
-        this.setState({ tags, loading: false });
+
+        const latestImageIndex = tags.findIndex((tag) => tag.tag === "latest");
+        if (latestImageIndex > -1) {
+          const [latestImage] = tags.splice(latestImageIndex, 1);
+          tags.unshift(latestImage);
+        }
+        this.setState({ tags: tags.map((tag) => tag.tag), loading: false });
       })
       .catch((err) => {
         console.log(err);
@@ -119,7 +132,8 @@ export default class TagList extends Component<PropsType, StateType> {
       <>
         <TagNameAlt>
           <Label>
-            <img src={info} /> Select Image Tag
+            <img src={info} />
+            {this.props.readOnly ? "Current image tag" : "Select Image Tag"}
           </Label>
           <Refresh onClick={this.refreshTagList}>
             <i className="material-icons">autorenew</i> Refresh

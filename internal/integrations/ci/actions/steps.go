@@ -7,7 +7,6 @@ import (
 
 const updateAppActionName = "porter-dev/porter-update-action"
 const createPreviewActionName = "porter-dev/porter-preview-action"
-const deletePreviewActionName = "porter-dev/porter-delete-preview-action"
 
 func getCheckoutCodeStep() GithubActionYAMLStep {
 	return GithubActionYAMLStep{
@@ -55,7 +54,7 @@ func getCreatePreviewEnvStep(
 			"project": fmt.Sprintf("%d", projectID),
 			"token":   fmt.Sprintf("${{ secrets.%s }}", porterTokenSecretName),
 			"namespace": fmt.Sprintf("pr-${{ github.event.inputs.pr_number }}-%s",
-				strings.ReplaceAll(repoName, "_", "-")),
+				strings.ToLower(strings.ReplaceAll(repoName, "_", "-"))),
 			"pr_id":           "${{ github.event.inputs.pr_number }}",
 			"pr_name":         "${{ github.event.inputs.pr_title }}",
 			"installation_id": fmt.Sprintf("%d", gitInstallationID),
@@ -64,24 +63,6 @@ func getCreatePreviewEnvStep(
 			"action_id":       "${{ github.run_id }}",
 			"repo_owner":      repoOwner,
 			"repo_name":       repoName,
-		},
-		Timeout: 30,
-	}
-}
-
-func getDeletePreviewEnvStep(serverURL, porterTokenSecretName string, projectID, clusterID uint, repoName, actionVersion string) GithubActionYAMLStep {
-	return GithubActionYAMLStep{
-		Name: "Delete Porter preview env",
-		Uses: fmt.Sprintf("%s@%s", deletePreviewActionName, actionVersion),
-		With: map[string]string{
-			"cluster":        fmt.Sprintf("%d", clusterID),
-			"host":           serverURL,
-			"project":        fmt.Sprintf("%d", projectID),
-			"token":          fmt.Sprintf("${{ secrets.%s }}", porterTokenSecretName),
-			"environment_id": "${{ github.event.inputs.environment_id }}",
-			"repo_owner":     "${{ github.repository_owner }}",
-			"repo_name":      repoName,
-			"pr_number":      "${{ github.event.inputs.pr_number }}",
 		},
 		Timeout: 30,
 	}

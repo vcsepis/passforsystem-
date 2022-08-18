@@ -49,14 +49,14 @@ func NewBuildDriver(resource *models.Resource, opts *drivers.SharedDriverOpts) (
 		output:      make(map[string]interface{}),
 	}
 
-	source, err := GetSource(resource.Source)
+	source, err := GetSource(resource.Name, resource.Source)
 	if err != nil {
 		return nil, err
 	}
 
 	driver.source = source
 
-	target, err := GetTarget(resource.Target)
+	target, err := GetTarget(resource.Name, resource.Target)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (d *BuildDriver) Apply(resource *models.Resource) (*models.Resource, error)
 
 	if repoName := os.Getenv("PORTER_REPO_NAME"); repoName != "" {
 		if repoOwner := os.Getenv("PORTER_REPO_OWNER"); repoOwner != "" {
-			repoSuffix = strings.ReplaceAll(fmt.Sprintf("%s-%s", repoOwner, repoName), "_", "-")
+			repoSuffix = strings.ToLower(strings.ReplaceAll(fmt.Sprintf("%s-%s", repoOwner, repoName), "_", "-"))
 		}
 	}
 
@@ -280,7 +280,9 @@ func (d *BuildDriver) Apply(resource *models.Resource) (*models.Resource, error)
 	}
 
 	if d.config.Build.Method == string(deploy.DeployBuildTypeDocker) {
-		basePath, err := filepath.Abs(".")
+		var basePath string
+
+		basePath, err = filepath.Abs(".")
 
 		if err != nil {
 			return nil, err

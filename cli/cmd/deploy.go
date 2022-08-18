@@ -1,16 +1,20 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
 	api "github.com/porter-dev/porter/api/client"
 	"github.com/porter-dev/porter/api/types"
 	"github.com/porter-dev/porter/cli/cmd/config"
 	"github.com/porter-dev/porter/cli/cmd/deploy"
+	"github.com/porter-dev/porter/cli/cmd/docker"
 	"github.com/porter-dev/porter/cli/cmd/utils"
 	templaterUtils "github.com/porter-dev/porter/internal/templater/utils"
 	"github.com/spf13/cobra"
@@ -145,8 +149,17 @@ for the application:
 
 var updatePushCmd = &cobra.Command{
 	Use:   "push",
-	Short: "Pushes a new image for an application specified by the --app flag.",
+	Short: "Pushes an image to a Docker registry linked to your Porter project.",
+	Args:  cobra.MaximumNArgs(1),
 	Long: fmt.Sprintf(`
+%s
+
+Pushes a local Docker image to a registry linked to your Porter project. This command
+requires the project ID to be set either by using the %s command
+or the --project flag. For example, to push a local nginx image:
+
+  %s
+
 %s
 
 Pushes a new image for an application specified by the --app flag. This command uses
@@ -161,6 +174,9 @@ are using an image registry that was created outside of Porter, make sure that y
 linked it via "porter connect".
 `,
 		color.New(color.FgBlue, color.Bold).Sprintf("Help for \"porter update push\":"),
+		color.New(color.FgBlue).Sprintf("porter config set-project"),
+		color.New(color.FgGreen, color.Bold).Sprintf("porter update push gcr.io/snowflake-123456/nginx:1234567"),
+		color.New(color.Bold).Sprintf("LEGACY USAGE:"),
 		color.New(color.FgGreen, color.Bold).Sprintf("porter update push --app nginx --tag new-tag"),
 	),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -203,6 +219,39 @@ the image that the application uses if no --values file is specified:
 	},
 }
 
+var updateEnvGroupCmd = &cobra.Command{
+	Use:     "env-group",
+	Aliases: []string{"eg", "envgroup", "env-groups", "envgroups"},
+	Short:   "Updates an environment group's variables, specified by the --name flag.",
+	Run: func(cmd *cobra.Command, args []string) {
+		color.New(color.FgRed).Println("need to specify an operation to continue")
+	},
+}
+
+var updateSetEnvGroupCmd = &cobra.Command{
+	Use:   "set",
+	Short: "Sets the desired value of an environment variable in an env group in the form VAR=VALUE.",
+	Run: func(cmd *cobra.Command, args []string) {
+		err := checkLoginAndRun(args, updateSetEnvGroup)
+
+		if err != nil {
+			os.Exit(1)
+		}
+	},
+}
+
+var updateUnsetEnvGroupCmd = &cobra.Command{
+	Use:   "unset",
+	Short: "Removes an environment variable from an env group.",
+	Run: func(cmd *cobra.Command, args []string) {
+		err := checkLoginAndRun(args, updateUnsetEnvGroup)
+
+		if err != nil {
+			os.Exit(1)
+		}
+	},
+}
+
 var app string
 var getEnvFileDest string
 var localPath string
@@ -213,10 +262,12 @@ var stream bool
 var buildFlagsEnv []string
 var forcePush bool
 var useCache bool
+var value string
+var version uint
+var varType string
 
 func init() {
 	buildFlagsEnv = []string{}
-
 	rootCmd.AddCommand(updateCmd)
 
 	updateCmd.PersistentFlags().StringVar(
@@ -225,8 +276,6 @@ func init() {
 		"",
 		"Application in the Porter dashboard",
 	)
-
-	updateCmd.MarkPersistentFlagRequired("app")
 
 	updateCmd.PersistentFlags().BoolVar(
 		&useCache,
@@ -329,9 +378,42 @@ func init() {
 		"file destination for .env files",
 	)
 
+	updateGetEnvCmd.MarkPersistentFlagRequired("app")
+
+	updateBuildCmd.MarkPersistentFlagRequired("app")
+
+	updateConfigCmd.MarkPersistentFlagRequired("app")
+
+	updateEnvGroupCmd.PersistentFlags().StringVar(
+		&name,
+		"name",
+		"",
+		"the name of the environment group",
+	)
+
+	updateEnvGroupCmd.PersistentFlags().UintVar(
+		&version,
+		"version",
+		0,
+		"the version of the environment group",
+	)
+
+	updateEnvGroupCmd.MarkPersistentFlagRequired("name")
+
+	updateSetEnvGroupCmd.PersistentFlags().StringVar(
+		&varType,
+		"type",
+		"normal",
+		"the type of environment variable (either \"normal\" or \"secret\")",
+	)
+
+	updateEnvGroupCmd.AddCommand(updateSetEnvGroupCmd)
+	updateEnvGroupCmd.AddCommand(updateUnsetEnvGroupCmd)
+
 	updateCmd.AddCommand(updateBuildCmd)
 	updateCmd.AddCommand(updatePushCmd)
 	updateCmd.AddCommand(updateConfigCmd)
+	updateCmd.AddCommand(updateEnvGroupCmd)
 }
 
 func updateFull(_ *types.GetAuthenticatedUserResponse, client *api.Client, args []string) error {
@@ -419,6 +501,58 @@ func updateBuild(_ *types.GetAuthenticatedUserResponse, client *api.Client, args
 }
 
 func updatePush(_ *types.GetAuthenticatedUserResponse, client *api.Client, args []string) error {
+	if app == "" {
+		if len(args) == 0 {
+			return fmt.Errorf("please provide the docker image name")
+		}
+
+		image := args[0]
+
+		registries, err := client.ListRegistries(context.Background(), cliConf.Project)
+
+		if err != nil {
+			return err
+		}
+
+		regs := *registries
+		regID := uint(0)
+
+		for _, reg := range regs {
+			if strings.Contains(image, reg.URL) {
+				regID = reg.ID
+				break
+			}
+		}
+
+		if regID == 0 {
+			return fmt.Errorf("could not find registry for image: %s", image)
+		}
+
+		err = client.CreateRepository(context.Background(), cliConf.Project, regID,
+			&types.CreateRegistryRepositoryRequest{
+				ImageRepoURI: strings.Split(image, ":")[0],
+			},
+		)
+
+		if err != nil {
+			return err
+		}
+
+		agent, err := docker.NewAgentWithAuthGetter(client, cliConf.Project)
+
+		if err != nil {
+			return err
+		}
+
+		err = agent.PushImage(image)
+
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}
+
 	updateAgent, err := updateGetAgent(client)
 
 	if err != nil {
@@ -436,6 +570,119 @@ func updateUpgrade(_ *types.GetAuthenticatedUserResponse, client *api.Client, ar
 	}
 
 	return updateUpgradeWithAgent(updateAgent)
+}
+
+func updateSetEnvGroup(_ *types.GetAuthenticatedUserResponse, client *api.Client, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("required variable in the form of VAR=VALUE")
+	}
+
+	key, value, found := strings.Cut(args[0], "=")
+
+	if !found {
+		return fmt.Errorf("variable should be in the form of VAR=VALUE")
+	}
+
+	s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+	s.Color("cyan")
+
+	s.Suffix = fmt.Sprintf(" Fetching env group '%s' in namespace '%s'", name, namespace)
+	s.Start()
+
+	envGroupResp, err := client.GetEnvGroup(context.Background(), cliConf.Project, cliConf.Cluster, namespace,
+		&types.GetEnvGroupRequest{
+			Name: name, Version: version,
+		},
+	)
+
+	s.Stop()
+
+	if err != nil {
+		return err
+	}
+
+	newEnvGroup := &types.CreateEnvGroupRequest{
+		Name:      envGroupResp.Name,
+		Variables: envGroupResp.Variables,
+	}
+
+	delete(newEnvGroup.Variables, key)
+
+	if varType == "secret" {
+		newEnvGroup.SecretVariables = make(map[string]string)
+		newEnvGroup.SecretVariables[key] = value
+
+		s.Suffix = fmt.Sprintf(" Adding new secret variable '%s' to env group '%s' in namespace '%s'", key, name, namespace)
+	} else {
+		newEnvGroup.Variables[key] = value
+
+		s.Suffix = fmt.Sprintf(" Adding new variable '%s' to env group '%s' in namespace '%s'", key, name, namespace)
+	}
+
+	s.Start()
+
+	_, err = client.CreateEnvGroup(
+		context.Background(), cliConf.Project, cliConf.Cluster, namespace, newEnvGroup,
+	)
+
+	s.Stop()
+
+	if err != nil {
+		return err
+	}
+
+	color.New(color.FgGreen).Println("env group successfully updated")
+
+	return nil
+}
+
+func updateUnsetEnvGroup(_ *types.GetAuthenticatedUserResponse, client *api.Client, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("required variable name")
+	}
+
+	s := spinner.New(spinner.CharSets[9], 100*time.Millisecond)
+	s.Color("cyan")
+
+	s.Suffix = fmt.Sprintf(" Fetching env group '%s' in namespace '%s'", name, namespace)
+	s.Start()
+
+	envGroupResp, err := client.GetEnvGroup(context.Background(), cliConf.Project, cliConf.Cluster, namespace,
+		&types.GetEnvGroupRequest{
+			Name: name, Version: version,
+		},
+	)
+
+	s.Stop()
+
+	if err != nil {
+		return err
+	}
+
+	newEnvGroup := &types.CreateEnvGroupRequest{
+		Name:      envGroupResp.Name,
+		Variables: envGroupResp.Variables,
+	}
+
+	delete(newEnvGroup.Variables, args[0])
+
+	s.Suffix = fmt.Sprintf(" Removing variable '%s' from env group '%s' in namespace '%s'", args[0], name, namespace)
+
+	s.Start()
+
+	_, err = client.CreateEnvGroup(
+		context.Background(), cliConf.Project, cliConf.Cluster, namespace, newEnvGroup,
+	)
+
+	s.Stop()
+
+	if err != nil {
+		return err
+	}
+
+	color.New(color.FgGreen).Println("env group successfully updated")
+
+	return nil
 }
 
 // HELPER METHODS

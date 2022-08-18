@@ -5,10 +5,11 @@
 
 // YAML Field interfaces
 
-import { ContextProps } from "../../shared/types";
+import { ChartType, ContextProps } from "../../shared/types";
 
 export interface GenericField {
   id: string;
+  injectedProps: unknown;
 }
 
 export interface GenericInputField extends GenericField {
@@ -88,6 +89,9 @@ export interface KeyValueArrayField extends GenericInputField {
     };
     type: "env" | "normal";
   };
+  injectedProps: {
+    availableSyncEnvGroups: PopulatedEnvGroup[];
+  };
 }
 
 export interface ArrayInputField extends GenericInputField {
@@ -142,6 +146,14 @@ export interface TextAreaField extends GenericInputField {
   };
 }
 
+export interface UrlLinkField extends GenericInputField {
+  type: "url-link";
+  label: string;
+  injectedProps: {
+    chart: ChartType;
+  };
+}
+
 export type FormField =
   | HeadingField
   | SubtitleField
@@ -155,7 +167,8 @@ export type FormField =
   | VeleroBackupField
   | VariableField
   | CronField
-  | TextAreaField;
+  | TextAreaField
+  | UrlLinkField;
 
 export interface ShowIfAnd {
   and: ShowIf[];
@@ -218,6 +231,7 @@ export type PopulatedEnvGroup = {
   };
   applications: any[];
   meta_version: number;
+  stack_id?: string;
 };
 export interface KeyValueArrayFieldState {
   values: {
@@ -301,3 +315,16 @@ export type GetFinalVariablesFunction = (
   state: PorterFormFieldFieldState,
   context: Partial<ContextProps>
 ) => PorterFormVariableList;
+
+export type GetMetadataFunction<T = unknown> = (
+  vars: PorterFormVariableList,
+  props: FormField,
+  state: PorterFormFieldFieldState,
+  context: Partial<ContextProps>
+) => T;
+
+export type InjectedProps = Partial<
+  {
+    [K in FormField["type"]]: Extract<FormField, { type: K }>["injectedProps"];
+  }
+>;

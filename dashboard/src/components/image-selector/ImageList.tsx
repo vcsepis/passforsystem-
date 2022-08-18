@@ -9,17 +9,31 @@ import { ImageType } from "shared/types";
 import Loading from "../Loading";
 import TagList from "./TagList";
 
-type PropsType = {
-  selectedImageUrl: string | null;
-  selectedTag: string | null;
-  clickedImage: ImageType | null;
-  registry?: any;
-  noTagSelection?: boolean;
-  setSelectedImageUrl: (x: string) => void;
-  setSelectedTag: (x: string) => void;
-  setClickedImage: (x: ImageType) => void;
-  disableImageSelect?: boolean;
-};
+type PropsType =
+  | {
+      selectedImageUrl: string | null;
+      selectedTag: string | null;
+      clickedImage: ImageType | null;
+      registry?: any;
+      noTagSelection?: boolean;
+      setSelectedImageUrl: (x: string) => void;
+      setSelectedTag: (x: string) => void;
+      setClickedImage: (x: ImageType) => void;
+      disableImageSelect?: boolean;
+      readOnly?: boolean;
+    }
+  | {
+      selectedImageUrl: string | null;
+      selectedTag: string | null;
+      clickedImage: ImageType | null;
+      registry?: any;
+      noTagSelection?: boolean;
+      setSelectedImageUrl?: (x: string) => void;
+      setSelectedTag?: (x: string) => void;
+      setClickedImage?: (x: ImageType) => void;
+      disableImageSelect?: boolean;
+      readOnly: true;
+    };
 
 type StateType = {
   loading: boolean;
@@ -172,7 +186,7 @@ export default class ImageList extends Component<PropsType, StateType> {
           <Loading />
         </LoadingWrapper>
       );
-    } else if (error || !images) {
+    } else if (error || !Array.isArray(images)) {
       return <LoadingWrapper>Error loading repos</LoadingWrapper>;
     } else if (images.length === 0) {
       return <LoadingWrapper>No registries found.</LoadingWrapper>;
@@ -222,6 +236,19 @@ export default class ImageList extends Component<PropsType, StateType> {
   renderExpanded = () => {
     let { selectedTag, selectedImageUrl, setSelectedTag } = this.props;
 
+    if (this.props.readOnly && this.props.clickedImage) {
+      return (
+        <ExpandedWrapper>
+          <TagList
+            selectedTag={selectedTag}
+            selectedImageUrl={selectedImageUrl}
+            registryId={this.props.clickedImage.registryId}
+            readOnly
+          />
+        </ExpandedWrapper>
+      );
+    }
+
     if (!this.props.clickedImage || this.props.noTagSelection) {
       return (
         <div>
@@ -229,21 +256,21 @@ export default class ImageList extends Component<PropsType, StateType> {
           {this.renderBackButton()}
         </div>
       );
-    } else {
-      return (
-        <div>
-          <ExpandedWrapper>
-            <TagList
-              selectedTag={selectedTag}
-              selectedImageUrl={selectedImageUrl}
-              setSelectedTag={setSelectedTag}
-              registryId={this.props.clickedImage.registryId}
-            />
-          </ExpandedWrapper>
-          {this.renderBackButton()}
-        </div>
-      );
     }
+
+    return (
+      <div>
+        <ExpandedWrapper>
+          <TagList
+            selectedTag={selectedTag}
+            selectedImageUrl={selectedImageUrl}
+            setSelectedTag={setSelectedTag}
+            registryId={this.props.clickedImage.registryId}
+          />
+        </ExpandedWrapper>
+        {this.renderBackButton()}
+      </div>
+    );
   };
 
   render() {

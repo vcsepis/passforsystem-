@@ -4,6 +4,7 @@ import {
   CheckboxField,
   CronField,
   FormField,
+  InjectedProps,
   InputField,
   KeyValueArrayField,
   ResourceListField,
@@ -11,6 +12,7 @@ import {
   SelectField,
   ServiceIPListField,
   TextAreaField,
+  UrlLinkField,
 } from "./types";
 import TabRegion, { TabOption } from "../TabRegion";
 import Heading from "../form-components/Heading";
@@ -28,6 +30,7 @@ import ResourceList from "./field-components/ResourceList";
 import VeleroForm from "./field-components/VeleroForm";
 import CronInput from "./field-components/CronInput";
 import TextAreaInput from "./field-components/TextAreaInput";
+import UrlLink from "./field-components/UrlLink";
 
 interface Props {
   leftTabOptions?: TabOption[];
@@ -49,6 +52,7 @@ interface Props {
   hideSpacer?: boolean;
   // The tab to redirect to after saving the form
   redirectTabAfterSave?: string;
+  injectedProps?: InjectedProps;
 }
 
 const PorterForm: React.FC<Props> = (props) => {
@@ -63,10 +67,14 @@ const PorterForm: React.FC<Props> = (props) => {
   const { currentTab, setCurrentTab } = props;
 
   const renderSectionField = (field: FormField): JSX.Element => {
+    const injected = props.injectedProps?.[field.type];
+
     const bundledProps = {
       ...field,
       isReadOnly,
+      injectedProps: injected ?? {},
     };
+
     switch (field.type) {
       case "heading":
         return <Heading>{field.label}</Heading>;
@@ -92,6 +100,8 @@ const PorterForm: React.FC<Props> = (props) => {
         return <CronInput {...(bundledProps as CronField)} />;
       case "text-area":
         return <TextAreaInput {...(bundledProps as TextAreaField)} />;
+      case "url-link":
+        return <UrlLink {...(bundledProps as UrlLinkField)} />;
     }
     return <p>Not Implemented: {(field as any).type}</p>;
   };

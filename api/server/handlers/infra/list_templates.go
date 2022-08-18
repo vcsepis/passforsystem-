@@ -57,6 +57,14 @@ var templateMap = map[string]*types.InfraTemplateMeta{
 		Kind:               "rds",
 		RequiredCredential: "aws_integration_id",
 	},
+	"s3": {
+		Icon:               "",
+		Description:        "Create an S3 bucket.",
+		Name:               "S3",
+		Version:            "v0.1.0",
+		Kind:               "s3",
+		RequiredCredential: "aws_integration_id",
+	},
 	"eks": {
 		Icon:               "https://img.stackshare.io/service/7991/amazon-eks.png",
 		Description:        "Create an Elastic Kubernetes Service cluster.",
@@ -71,6 +79,14 @@ var templateMap = map[string]*types.InfraTemplateMeta{
 		Name:               "GCR",
 		Version:            "v0.1.0",
 		Kind:               "gcr",
+		RequiredCredential: "gcp_integration_id",
+	},
+	"gar": {
+		Icon:               "https://carlossanchez.files.wordpress.com/2019/06/21046548.png?w=640",
+		Description:        "Create a Google Artifact Registry.",
+		Name:               "GAR",
+		Version:            "v0.1.0",
+		Kind:               "gar",
 		RequiredCredential: "gcp_integration_id",
 	},
 	"gke": {
@@ -96,5 +112,21 @@ var templateMap = map[string]*types.InfraTemplateMeta{
 		Version:            "v0.1.0",
 		Kind:               "doks",
 		RequiredCredential: "do_integration_id",
+	},
+	"acr": {
+		Icon:               "",
+		Description:        "Create an Azure Container Registry.",
+		Name:               "ACR",
+		Version:            "v0.1.0",
+		Kind:               "acr",
+		RequiredCredential: "azure_integration_id",
+	},
+	"aks": {
+		Icon:               "",
+		Description:        "Create an Azure Kubernetes Service cluster",
+		Name:               "AKS",
+		Version:            "v0.1.0",
+		Kind:               "aks",
+		RequiredCredential: "azure_integration_id",
 	},
 }

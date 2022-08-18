@@ -23,11 +23,15 @@ const (
 	InfraECR  InfraKind = "ecr"
 	InfraEKS  InfraKind = "eks"
 	InfraGCR  InfraKind = "gcr"
+	InfraGAR  InfraKind = "gar"
 	InfraGKE  InfraKind = "gke"
 	InfraDOCR InfraKind = "docr"
 	InfraDOKS InfraKind = "doks"
+	InfraAKS  InfraKind = "aks"
+	InfraACR  InfraKind = "acr"
 
 	InfraRDS InfraKind = "rds"
+	InfraS3  InfraKind = "s3"
 )
 
 type Infra struct {
@@ -38,6 +42,8 @@ type Infra struct {
 
 	// The project that this integration belongs to
 	ProjectID uint `json:"project_id"`
+
+	Name string `json:"name"`
 
 	APIVersion    string `json:"api_version,omitempty"`
 	SourceLink    string `json:"source_link,omitempty"`
@@ -59,6 +65,9 @@ type Infra struct {
 	// this points to an OAuthIntegrationID
 	DOIntegrationID uint `json:"do_integration_id,omitempty"`
 
+	// The Azure integration that was used to create the infra
+	AzureIntegrationID uint `json:"azure_integration_id,omitempty"`
+
 	// The last-applied, non-sensitive input variables to the provisioner. For now,
 	// this is a map[string]string since we marshal into env vars anyway, but
 	// eventually this config will be more complex.
@@ -70,9 +79,10 @@ type Infra struct {
 }
 
 type InfraCredentials struct {
-	AWSIntegrationID uint `json:"aws_integration_id,omitempty"`
-	GCPIntegrationID uint `json:"gcp_integration_id,omitempty"`
-	DOIntegrationID  uint `json:"do_integration_id,omitempty"`
+	AWSIntegrationID   uint `json:"aws_integration_id,omitempty"`
+	GCPIntegrationID   uint `json:"gcp_integration_id,omitempty"`
+	DOIntegrationID    uint `json:"do_integration_id,omitempty"`
+	AzureIntegrationID uint `json:"azure_integration_id,omitempty"`
 }
 
 type CreateInfraRequest struct {

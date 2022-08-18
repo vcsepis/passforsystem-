@@ -67,6 +67,7 @@ export const useChart = (oldChart: ChartType, closeChart: () => void) => {
         {
           values: valuesYaml,
           version: chart.latest_version,
+          latest_revision: chart.version,
         },
         {
           id: currentProject.id,
@@ -96,11 +97,20 @@ export const useChart = (oldChart: ChartType, closeChart: () => void) => {
     }
   };
 
-  /**
-   * Delete/Uninstall chart
-   */
-  const deleteChart = async () => {
-    try {
+  const uninstallChart = async () => {
+    if (chart.stack_id) {
+      await api.removeStackAppResource(
+        "<token>",
+        {},
+        {
+          project_id: currentProject.id,
+          cluster_id: currentCluster.id,
+          app_resource_name: chart.name,
+          namespace: chart.namespace,
+          stack_id: chart.stack_id,
+        }
+      );
+    } else {
       await api.uninstallTemplate(
         "<token>",
         {},
@@ -111,6 +121,43 @@ export const useChart = (oldChart: ChartType, closeChart: () => void) => {
           cluster_id: currentCluster.id,
         }
       );
+    }
+  };
+
+  /**
+   * Delete/Uninstall chart
+   */
+  const deleteChart = async () => {
+    setStatus("deleting");
+    try {
+      const syncedEnvGroups = chart.config?.container?.env?.synced || [];
+      const removeApplicationToEnvGroupPromises = syncedEnvGroups.map(
+        (envGroup: any) => {
+          return api.removeApplicationFromEnvGroup(
+            "<token>",
+            {
+              name: envGroup?.name,
+              app_name: chart.name,
+            },
+            {
+              project_id: currentProject.id,
+              cluster_id: currentCluster.id,
+              namespace: chart.namespace,
+            }
+          );
+        }
+      );
+      try {
+        await Promise.all(removeApplicationToEnvGroupPromises);
+      } catch (error) {
+        setCurrentError(
+          "We coudln't remove the synced env group from the application, please remove it manually before uninstalling the chart, or try again."
+        );
+        return;
+      }
+
+      await uninstallChart();
+
       setStatus("ready");
       closeChart();
       return;
@@ -124,35 +171,18 @@ export const useChart = (oldChart: ChartType, closeChart: () => void) => {
    * Update chart values
    */
   const updateChart = async (
-    processValues:
-      | ((chart: ChartType) => string)
-      | ((chart: ChartType, oldChart?: ChartType) => string)
+    processValues: (
+      chart: ChartType,
+      oldChart?: ChartType
+    ) => { yaml: string; metadata: any }
   ) => {
     setSaveStatus("loading");
-    const values = processValues(chart, oldChart);
+    const { yaml: values, metadata } = processValues(chart, oldChart);
 
-    const oldSyncedEnvGroups = oldChart.config?.container?.env?.synced || [];
-    const newSyncedEnvGroups = chart.config?.container?.env?.synced || [];
+    const syncEnvGroups = metadata ? metadata["container.env"] : {};
 
-    const deletedEnvGroups = onlyInLeft<{
-      keys: Array<any>;
-      name: string;
-      version: number;
-    }>(
-      oldSyncedEnvGroups,
-      newSyncedEnvGroups,
-      (oldVal, newVal) => oldVal.name === newVal.name
-    );
-
-    const addedEnvGroups = onlyInLeft<{
-      keys: Array<any>;
-      name: string;
-      version: number;
-    }>(
-      newSyncedEnvGroups,
-      oldSyncedEnvGroups,
-      (oldVal, newVal) => oldVal.name === newVal.name
-    );
+    const addedEnvGroups = syncEnvGroups?.added || [];
+    const deletedEnvGroups = syncEnvGroups?.deleted || [];
 
     const addApplicationToEnvGroupPromises = addedEnvGroups.map(
       (envGroup: any) => {
@@ -208,6 +238,7 @@ export const useChart = (oldChart: ChartType, closeChart: () => void) => {
         "<token>",
         {
           values,
+          latest_revision: chart.version,
         },
         {
           id: currentProject.id,
