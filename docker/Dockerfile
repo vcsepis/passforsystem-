@@ -47,20 +47,20 @@ RUN --mount=type=cache,target=/root/.cache/go-build \
 
 # Webpack build environment
 # -------------------------
-FROM node:16 as build-webpack
-WORKDIR /webpack
-
-COPY ./dashboard ./
-
-RUN npm install -g npm@8.1
-
-RUN npm i --legacy-peer-deps
-
-ENV NODE_ENV=production
-ENV APPLICATION_CHART_REPO_URL="https://charts.getporter.dev"
-ENV ADDON_CHART_REPO_URL="https://chart-addons.getporter.dev"
-
-RUN npm run build
+#FROM node:16 as build-webpack
+#WORKDIR /webpack
+#
+#COPY ./dashboard ./
+#
+#RUN npm install -g npm@8.1
+#
+#RUN npm i --legacy-peer-deps
+#
+#ENV NODE_ENV=production
+#ENV APPLICATION_CHART_REPO_URL="https://charts.getporter.dev"
+#ENV ADDON_CHART_REPO_URL="https://chart-addons.getporter.dev"
+#
+#RUN npm run build
 
 # Deployment environment
 # ----------------------
