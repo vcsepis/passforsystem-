@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/porter-dev/porter/internal/integrations/ci/drone"
 	"net/http"
 	"strings"
 	"time"
@@ -346,7 +347,8 @@ func createGitAction(
 		gitErr = giRunner.Setup()
 	} else {
 		// create the commit in the git repo
-		gaRunner := &actions.GithubActions{
+		//gaRunner := &actions.GithubActions{
+		gaRunner := &drone.DroneCI{
 			InstanceName:           config.ServerConf.InstanceName,
 			ServerURL:              config.ServerConf.ServerURL,
 			GithubOAuthIntegration: nil,

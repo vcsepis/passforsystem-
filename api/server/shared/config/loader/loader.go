@@ -150,8 +150,9 @@ func (e *EnvConfigLoader) LoadConfig() (res *config.Config, err error) {
 		res.GithubConf = oauth.NewGithubClient(&oauth.Config{
 			ClientID:     sc.GithubClientID,
 			ClientSecret: sc.GithubClientSecret,
-			Scopes:       []string{"read:user", "user:email"},
-			BaseURL:      sc.ServerURL,
+			// Scopes:       []string{"read:user", "user:email"},
+			Scopes:  []string{"read:user", "user:email", "repo", "repo:status", "read:org"},
+			BaseURL: sc.ServerURL,
 		})
 	}
 

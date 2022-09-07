@@ -4,7 +4,7 @@ metadata:
   name: ingress-paas-dev-porter
 spec:
   rules:
-  - host: devpaas-thang.myepis.cloud
+  - host: dev-paas.myepis.cloud
     http:
       paths:
       - path: /
