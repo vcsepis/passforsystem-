@@ -286,3 +286,12 @@ type GetIncidentEventLogsRequest struct {
 type IncidentNotifyRequest struct {
 	IncidentID string `json:"incident_id" form:"required"`
 }
+
+type ClusterPlan struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	CPU  string `json:"cpu"`
+	RAM  string `json:"ram"`
+}
+
+type ListClusterPlanResponse []ClusterPlan
