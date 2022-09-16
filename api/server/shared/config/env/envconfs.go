@@ -117,6 +117,10 @@ type ServerConf struct {
 	DefaultGCPIntRegion    string `env:"DEFAULT_GCP_INTEGRATION_REGION"`
 	DefaultGCPIntProjectId string `env:"DEFAULT_GCP_INTEGRATION_PROJECT_ID"`
 
+	// Paas Cluster config
+	KubeConfigAPIUrl   string `env:"KUBE_CONFIG_API_URL"`
+	KubeConfigAPIToken string `env:"KUBE_CONFIG_API_TOKEN"`
+
 	// Default Cluster
 	DefaultKubeConfigFile string `env:"DEFAULT_KUBE_CONFIG_FILE"`
 

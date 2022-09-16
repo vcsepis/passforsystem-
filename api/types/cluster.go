@@ -288,10 +288,10 @@ type IncidentNotifyRequest struct {
 }
 
 type ClusterPlan struct {
-	ID   string `json:"id"`
+	ID   int    `json:"id"`
 	Name string `json:"name"`
-	CPU  string `json:"cpu"`
-	RAM  string `json:"ram"`
+	CPU  int    `json:"cpu"`
+	RAM  int    `json:"ram"`
 }
 
 type ListClusterPlanResponse []ClusterPlan

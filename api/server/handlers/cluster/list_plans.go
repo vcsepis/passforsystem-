@@ -27,16 +27,16 @@ func NewListClusterPlansHandler(
 }
 
 func (c *ListClusterPlansHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	planAPIUrl := fmt.Sprintf("%s/api/paas-plan", c.Config().ServerConf.KubeConfigAPIUrl)
+	planAPIToken := fmt.Sprintf("Bearer %s", c.Config().ServerConf.KubeConfigAPIToken)
 
-	req, _ := http.NewRequest(http.MethodGet, "https://k8sconfig.myepis.cloud/api/paas-plan", nil)
-	req.Header.Set("Authorization", "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOi8vazhzY29uZmlnLm15ZXBpcy5jbG91ZC9hcGkvbG9naW4iLCJpYXQiOjE2NjMyNTc2OTIsImV4cCI6NDgxNjg1NzY5MiwibmJmIjoxNjYzMjU3NjkyLCJqdGkiOiIyYkxQUlZPWXE2bDFGdDJ6Iiwic3ViIjo4LCJwcnYiOiI4N2UwYWYxZWY5ZmQxNTgxMmZkZWM5NzE1M2ExNGUwYjA0NzU0NmFhIiwiaXMiOiJodHRwOi8vbG9jYWxob3N0IiwiaGkiOiJDdXN0b21DbGFpbXMifQ.lTTRPBEpxDeg88YsX35vySZ3P5GS2By_cjAc5hPaAnU")
+	req, _ := http.NewRequest(http.MethodGet, planAPIUrl, nil)
+	req.Header.Set("Authorization", planAPIToken)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(err))
 		return
 	}
-	fmt.Println("Request success")
-	fmt.Println(res)
 
 	defer res.Body.Close()
 
@@ -52,15 +52,13 @@ func (c *ListClusterPlansHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 		c.HandleAPIError(w, r, apierrors.NewErrInternal(fmt.Errorf("request failed with status code %d: %s\n", res.StatusCode, string(resBytes))))
 	}
 
-	type returnBody struct {
-		data types.ListClusterPlanResponse `json:"data"`
+	type ReturnBody struct {
+		Success string                        `json:"success"`
+		Message string                        `json:"message"`
+		Data    types.ListClusterPlanResponse `json:"data"`
 	}
-	var retBody returnBody
-	fmt.Println("Return body")
-	fmt.Println(string(resBytes))
+	var retBody ReturnBody
 	json.Unmarshal(resBytes, &retBody)
-	fmt.Println("Parsed body")
-	fmt.Println(retBody)
 
-	c.WriteResult(w, r, retBody.data)
+	c.WriteResult(w, r, retBody.Data)
 }
